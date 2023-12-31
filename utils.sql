@@ -15,25 +15,28 @@ CREATE OR REPLACE PROCEDURE show_tables()
     END $$;
 
 -- GRANT ACCESS USER ROLE TO SELECT VIEW
-CREATE OR REPLACE PROCEDURE grant_select_views_to_user_role()
+CREATE OR REPLACE PROCEDURE grant_DML_type_views_to_role(DML_type varchar, role varchar)
     LANGUAGE plpgsql
     AS $$
+    DECLARE
+        proper_DML_type bool := upper(DML_type) = 'SELECT'
+        OR upper(DML_type) = 'INSERT' OR upper(DML_type) = 'SELECT';
     BEGIN
-        IF EXISTS(SELECT FROM pg_roles WHERE rolname='external_user') THEN
-            GRANT SELECT ON public_competitors_info TO external_user;
-            RAISE NOTICE 'GRANT SELECT ON public_competitors_info TO external_user';
-            GRANT SELECT ON public_teams_info TO external_user;
-            RAISE NOTICE 'GRANT SELECT ON public_teams_info TO external_user';
-            GRANT SELECT ON public_tournament_info TO external_user;
-            RAISE NOTICE 'GRANT SELECT ON public_tournament_info TO external_user';
-            GRANT SELECT ON solo_results TO external_user;
-            RAISE NOTICE 'GRANT SELECT ON solo_results TO external_user';
-            GRANT SELECT ON team_results TO external_user;
-            RAISE NOTICE 'GRANT SELECT ON team_results TO external_user';
+        IF EXISTS(SELECT FROM pg_roles WHERE rolname=role) AND proper_DML_type THEN
+            EXECUTE 'GRANT ' || DML_type || ' ON public_competitors_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_competitors_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON public_teams_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_teams_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON public_tournament_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_tournament_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON solo_results TO ' || role;
+            RAISE NOTICE 'GRANT % ON solo_results TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON team_results TO ' || role;
+            RAISE NOTICE 'GRANT % ON team_results TO %', DML_type, role;
         ELSE
-            RAISE NOTICE 'user role does not exist';
+            RAISE NOTICE '% role does not exist', role;
         end if;
-    END;
+    END
     $$;
 
 
@@ -41,4 +44,6 @@ CREATE OR REPLACE PROCEDURE grant_select_views_to_user_role()
 
 CALL show_tables();
 
-CALL grant_select_views_to_user_role();
+CALL grant_DML_type_views_to_role('SELECT', 'external_user');
+CALL grant_DML_type_views_to_role('SELECT', 'organizer');
+CALL grant_DML_type_views_to_role('SELECT', 'referee');
