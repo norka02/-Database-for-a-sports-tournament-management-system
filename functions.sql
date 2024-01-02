@@ -419,4 +419,96 @@ CREATE OR REPLACE FUNCTION add_participant(
     $$ LANGUAGE plpgsql;
 
 
+-- DELETE COMPETITOR FUNCTION
+CREATE OR REPLACE FUNCTION delete_competitor(
+    _competitor_id int
+) RETURNS void AS $$
+    BEGIN
+        SELECT competitors.competitor_id FROM competitors WHERE competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+        DELETE FROM competitors WHERE competitor_id = _competitor_id;
+    end;
+    $$ language plpgsql;
+
+-- DELETE TOURNAMENT FUNCTION
+CREATE OR REPLACE FUNCTION delete_tournament(
+    _tournament_id int
+) RETURNS void AS $$
+    BEGIN
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'tournament with that ID does not exist';
+        end if;
+        DELETE FROM tournaments WHERE tournament_id = _tournament_id;
+    end;
+    $$ language plpgsql;
+
+-- DELETE SOLO RESULT FUNCTION
+CREATE OR REPLACE FUNCTION delete_solo_result(
+    _result_id int
+) RETURNS void AS $$
+    BEGIN
+        SELECT result_id FROM solo_results WHERE result_id = _result_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'result with that ID does not exist';
+        end if;
+        DELETE FROM solo_results WHERE result_id = _result_id;
+    end;
+    $$ language plpgsql;
+
+-- DELETE TEAM RESULT FUNCTION
+CREATE OR REPLACE FUNCTION delete_team_result(
+    _result_id int
+) RETURNS void AS $$
+    BEGIN
+        SELECT result_id FROM team_results WHERE result_id = _result_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'result with that ID does not exist';
+        end if;
+        DELETE FROM team_results WHERE result_id = _result_id;
+    end;
+    $$ language plpgsql;
+
+
+-- DELETE PARTICIPATION FUNCTION
+CREATE OR REPLACE FUNCTION delete_participation(
+    _participation_id INT
+) RETURNS void AS $$
+    BEGIN
+        SELECT participation_id FROM participation WHERE participation_id = _participation_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'participation with that ID does not exist';
+        end if;
+        DELETE FROM participation WHERE participation_id = _participation_id;
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+-- TRIGGER FUNCTIONS
+
+-- ADD PAYMENT FUNCTION
+CREATE OR REPLACE FUNCTION insert_new_payment_status()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        _amount INT := 100;
+        _payment_date timestamp := now();
+        _status_id INT := 1;
+    BEGIN
+        INSERT INTO payments (amount,
+                              payment_date,
+                              status_id
+        ) VALUES (
+                  _amount,
+                  _payment_date,
+                  _status_id
+                         );
+        RETURN NEW;
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+
+
 -- FUNCTION CALLS
