@@ -485,6 +485,17 @@ CREATE OR REPLACE FUNCTION delete_participation(
     end;
     $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION delete_trainer(
+    _trainer_id INT
+) RETURNS void AS $$
+    BEGIN
+        SELECT trainer_id FROM trainers WHERE trainer_id = _trainer_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'trainer with that ID does not exist';
+        end if;
+        DELETE FROM trainers WHERE _trainer_id = trainer_id;
+    end;
+    $$ LANGUAGE plpgsql;
 
 -- TRIGGER FUNCTIONS
 
