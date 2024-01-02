@@ -1,0 +1,17 @@
+BEGIN TRANSACTION;
+CALL grant_DML_type_views_to_role('SELECT', 'external_user');
+CALL grant_DML_type_views_to_role('SELECT', 'organizer');
+CALL grant_DML_type_views_to_role('SELECT', 'referee');
+GRANT EXECUTE ON FUNCTION add_tournament(text, text, text, text, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH TIME ZONE, text) TO organizer;
+GRANT EXECUTE ON FUNCTION add_competitor(text, text, text, bool, int, text, date, text, text, text, text, int, text) TO external_user;
+GRANT EXECUTE ON FUNCTION add_trainer(text, text, text, text, text, text, text, int, text) TO external_user;
+GRANT EXECUTE ON FUNCTION add_team(text, int) TO organizer;
+GRANT EXECUTE ON FUNCTION add_solo_result(int, int, numeric) TO referee;
+GRANT EXECUTE ON FUNCTION add_team_result(int, int, numeric) TO referee;
+GRANT EXECUTE ON FUNCTION add_participant(int, int, text) TO organizer;
+GRANT EXECUTE ON FUNCTION delete_competitor(int) TO organizer;
+GRANT EXECUTE ON FUNCTION delete_tournament(int) TO organizer;
+GRANT EXECUTE ON FUNCTION delete_solo_result(int) TO referee;
+GRANT EXECUTE ON FUNCTION delete_team_result(int) TO referee;
+GRANT EXECUTE ON FUNCTION delete_participation(int) TO organizer;
+END;

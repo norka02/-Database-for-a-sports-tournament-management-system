@@ -341,7 +341,7 @@ CREATE OR REPLACE FUNCTION add_solo_result(
 
 
 -- ADD TEAM RESULTS FUNCTION
-CREATE OR REPLACE FUNCTION add_solo_result(
+CREATE OR REPLACE FUNCTION add_team_result(
     _tournament_id INT,
     _team_id INT,
     _team_result NUMERIC
