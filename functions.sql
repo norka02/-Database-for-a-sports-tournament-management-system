@@ -318,7 +318,7 @@ CREATE OR REPLACE FUNCTION add_solo_result(
             RAISE EXCEPTION 'Tournament with that ID does not exist';
         end if;
 
-    -- check if copetitor id exists
+    -- check if competitor id exists
         SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Competitor with that ID does not exist';
@@ -374,6 +374,49 @@ CREATE OR REPLACE FUNCTION add_solo_result(
     end;
     $$ LANGUAGE plpgsql;
 
+
+
+-- ADD PARTICIPANT FUNCTION
+CREATE OR REPLACE FUNCTION add_participant(
+    _tournament_id int,
+    _competitor_id int,
+    _competitor_status TEXT
+    ) RETURNS void AS $$
+    DECLARE
+        _status_id int;
+    BEGIN
+    -- check if status id exists
+        SELECT competitor_statuses.status_id INTO _status_id FROM competitor_statuses WHERE
+                                                                        competitor_statuses.status = _competitor_status;
+        IF NOT FOUND THEN
+            INSERT INTO competitor_statuses (status) VALUES (_competitor_status);
+            SELECT competitor_statuses.status_id INTO _status_id FROM competitor_statuses WHERE
+                                                                        competitor_statuses.status = _competitor_status;
+        end if;
+
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if competitor id exists
+        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+
+        INSERT INTO participation (tournament_id,
+                                   competitor_id,
+                                   competitor_status_id
+        ) VALUES (
+                  _tournament_id,
+                  _competitor_id,
+                  _status_id
+                         );
+
+    end;
+    $$ LANGUAGE plpgsql;
 
 
 -- FUNCTION CALLS
