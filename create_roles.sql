@@ -41,12 +41,11 @@ CREATE OR REPLACE PROCEDURE grant_role_to_user(role VARCHAR, user_name VARCHAR)
     $$;
 
 -- CALLING PROCEDURES AND FUNCTIONS
-
+BEGIN TRANSACTION;
 CALL create_role('external_user');
 CALL create_role('organizer');
 CALL create_role('referee');
-
-
+END;
 
 
 

@@ -43,7 +43,9 @@ CREATE OR REPLACE PROCEDURE grant_DML_type_views_to_role(DML_type varchar, role 
 -- PROCEDURES AND FUNCTIONS CALLS
 
 CALL show_tables();
-
+BEGIN TRANSACTION;
 CALL grant_DML_type_views_to_role('SELECT', 'external_user');
 CALL grant_DML_type_views_to_role('SELECT', 'organizer');
 CALL grant_DML_type_views_to_role('SELECT', 'referee');
+GRANT INSERT ON tournaments TO organizer;
+END;
