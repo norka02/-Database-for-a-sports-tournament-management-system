@@ -69,6 +69,7 @@ CREATE TABLE system_logs (
         ON UPDATE CASCADE ON DELETE SET NULL DEFERRABLE
 );
 
+
 CREATE TABLE organizers (
     organizer_id SERIAL PRIMARY KEY,
     name text NOT NULL UNIQUE,
@@ -76,6 +77,8 @@ CREATE TABLE organizers (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
         ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE
 );
+
+
 
 CREATE TABLE tournaments (
     tournament_id SERIAL PRIMARY KEY,

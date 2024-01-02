@@ -3,6 +3,8 @@
 CREATE OR REPLACE PROCEDURE create_user(user_name VARCHAR, user_password VARCHAR)
     LANGUAGE plpgsql
     AS $$
+    DECLARE
+        _role_id int;
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = user_name) THEN
             EXECUTE 'CREATE ROLE ' || user_name || ' WITH LOGIN PASSWORD ''' || user_password || '''';

@@ -13,6 +13,7 @@ CREATE OR REPLACE FUNCTION add_tournament(
         _tournament_type_id INT;
         _organizer_id INT;
     BEGIN
+       -- set transaction isolation level serializable;
     -- lock tables
         EXECUTE ' LOCK TABLE tournaments IN ACCESS EXCLUSIVE MODE';
         EXECUTE 'LOCK TABLE locations IN ACCESS EXCLUSIVE MODE';
@@ -63,6 +64,223 @@ CREATE OR REPLACE FUNCTION add_tournament(
         RAISE NOTICE 'ADDING NEW TOURNAMENT';
     end;
     $$ LANGUAGE plpgsql;
+
+
+
+-- ADD COMPETITOR FUNCTION
+CREATE OR REPLACE FUNCTION add_competitor(
+        _first_name TEXT,
+        _last_name TEXT,
+        _pesel TEXT,
+        _is_individual bool,
+        _team_id INT,
+        _phone_number TEXT,
+        _birth_date DATE,
+        _nationality TEXT,
+        _area_code TEXT,
+        _email TEXT,
+        _city TEXT,
+        _house_number int,
+        _zip_code text
+) RETURNS void AS $$
+    DECLARE
+        _address_data_id INT;
+        _contact_details_id INT;
+        _personal_data_id INT;
+        _team_id INT;
+    BEGIN
+    -- check if team exists or this value is null
+        SELECT t.team_id from teams t WHERE t.name = _team_id;
+        IF FOUND THEN
+            RAISE EXCEPTION 'Team with tha ID does not exist';
+        end if;
+
+
+    -- check if current user exists in DB
+        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
+        IF FOUND THEN
+            RAISE EXCEPTION 'User with this PESEL number already exists.';
+        end if;
+
+        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+            cd.email = _email LIMIT 1 FOR UPDATE;
+         IF FOUND THEN
+            RAISE EXCEPTION 'User with this email or phone number already exists.';
+        end if;
+
+
+    -- insert competitor
+        INSERT INTO contact_details (
+                                     phone_number,
+                                     area_code,
+                                     email)
+        VALUES (
+                _phone_number,
+                _area_code,
+                _email
+               );
+
+        INSERT INTO personal_data (
+                                   first_name,
+                                   last_name,
+                                   pesel_number)
+        VALUES (
+            _first_name,
+            _last_name,
+            _pesel
+           );
+
+        SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+
+        IF NOT FOUND THEN
+            INSERT INTO address_data (
+                                      city,
+                                      house_number,
+                                      zip_code
+            ) VALUES (
+                    _city,
+                    _house_number,
+                    _zip_code
+                             );
+            SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+        end if;
+
+
+
+        SELECT pd.personal_data_id INTO _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel;
+
+        SELECT cd.contact_details_id INTO _contact_details_id FROM contact_details cd WHERE cd.email = _email
+                                                                                    AND cd.phone_number = _phone_number;
+
+
+        INSERT INTO competitors (
+                                 is_individual_player,
+                                 birth_date,
+                                 nationality,
+                                 team_id,
+                                 contact_details_id,
+                                 address_data_id,
+                                 personal_data_id
+        ) VALUES (
+                  _is_individual,
+                  _birth_date,
+                  _nationality,
+                  _team_id,
+                  _contact_details_id,
+                  _address_data_id,
+                  _personal_data_id
+        );
+
+        RAISE NOTICE 'Competitor has been added properly';
+
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+
+
+-- ADD TRAINER FUNCTION
+CREATE OR REPLACE FUNCTION add_trainer(
+        _first_name TEXT,
+        _last_name TEXT,
+        _pesel TEXT,
+        _phone_number TEXT,
+        _area_code TEXT,
+        _email TEXT,
+        _city TEXT,
+        _house_number int,
+        _zip_code text
+    ) RETURNS void AS $$
+    DECLARE
+        _address_data_id INT;
+        _contact_details_id INT;
+        _personal_data_id INT;
+    BEGIN
+    -- check if current trainer exists in DB
+        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
+        IF FOUND THEN
+            RAISE EXCEPTION 'User with this PESEL number already exists.';
+        end if;
+
+        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+            cd.email = _email LIMIT 1 FOR UPDATE;
+         IF FOUND THEN
+            RAISE EXCEPTION 'User with this email or phone number already exists.';
+        end if;
+
+
+    -- insert trainer
+        INSERT INTO contact_details (
+                                     phone_number,
+                                     area_code,
+                                     email)
+        VALUES (
+                _phone_number,
+                _area_code,
+                _email
+               );
+
+        INSERT INTO personal_data (
+                                   first_name,
+                                   last_name,
+                                   pesel_number)
+        VALUES (
+            _first_name,
+            _last_name,
+            _pesel
+           );
+
+        SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+
+        IF NOT FOUND THEN
+            INSERT INTO address_data (
+                                      city,
+                                      house_number,
+                                      zip_code
+            ) VALUES (
+                    _city,
+                    _house_number,
+                    _zip_code
+                             );
+            SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+        end if;
+
+
+
+        SELECT pd.personal_data_id INTO _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel;
+
+        SELECT cd.contact_details_id INTO _contact_details_id FROM contact_details cd WHERE cd.email = _email
+                                                                                    AND cd.phone_number = _phone_number;
+
+
+        INSERT INTO trainers (
+                                 contact_details_id,
+                                 address_data_id,
+                                 personal_data_id
+        ) VALUES (
+                  _contact_details_id,
+                  _address_data_id,
+                  _personal_data_id
+        );
+
+        RAISE NOTICE 'Trainer has been added properly';
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+
 
 
 
