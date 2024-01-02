@@ -280,7 +280,99 @@ CREATE OR REPLACE FUNCTION add_trainer(
     $$ LANGUAGE plpgsql;
 
 
+-- ADD TEAM FUNCTION
+CREATE OR REPLACE FUNCTION add_team(
+    _name TEXT,
+    _trainer_id INT
+    ) RETURNS void AS $$
+    BEGIN
+    -- check if trainer exists
+        SELECT trainers.trainer_id FROM trainers WHERE _trainer_id = trainers.trainer_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Trainer with that ID does not exist';
+        end if;
 
+    -- insert team
+        INSERT INTO teams (
+                           name,
+                           trainer_id
+        ) VALUES (
+                  _name,
+                  _trainer_id
+                         );
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+
+-- ADD SOLO RESULTS FUNCTION
+CREATE OR REPLACE FUNCTION add_solo_result(
+    _tournament_id INT,
+    _competitor_id INT,
+    _solo_result NUMERIC
+    ) RETURNS void AS $$
+    BEGIN
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if copetitor id exists
+        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+
+    -- insert solo result
+        INSERT INTO solo_results (
+                                  tournament_id,
+                                  competitor_id,
+                                  point_score
+        ) VALUES (
+                  _tournament_id,
+                  _competitor_id,
+                  _solo_result
+                         );
+
+        RAISE NOTICE 'Solo resul has been added successfully';
+    end;
+    $$ LANGUAGE plpgsql;
+
+
+-- ADD TEAM RESULTS FUNCTION
+CREATE OR REPLACE FUNCTION add_solo_result(
+    _tournament_id INT,
+    _team_id INT,
+    _team_result NUMERIC
+    ) RETURNS void AS $$
+    BEGIN
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if team id exists
+        SELECT team_id FROM teams WHERE team_id= _team_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Team with that ID does not exist';
+        end if;
+
+    -- insert solo result
+        INSERT INTO team_results (
+                                  tournament_id,
+                                  team_id,
+                                  point_score
+        ) VALUES (
+                  _tournament_id,
+                  _team_id,
+                  _team_result
+                         );
+
+        RAISE NOTICE 'Team resul has been added successfully';
+    end;
+    $$ LANGUAGE plpgsql;
 
 
 
