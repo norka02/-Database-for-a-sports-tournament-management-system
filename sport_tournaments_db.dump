@@ -1,0 +1,2572 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 16.0
+-- Dumped by pg_dump version 16.0
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: adminpack; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS adminpack WITH SCHEMA pg_catalog;
+
+
+--
+-- Name: EXTENSION adminpack; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION adminpack IS 'administrative functions for PostgreSQL';
+
+
+--
+-- Name: add_competitor(text, text, text, boolean, integer, text, date, text, text, text, text, integer, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_competitor(_first_name text, _last_name text, _pesel text, _is_individual boolean, _team_id integer, _phone_number text, _birth_date date, _nationality text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _address_data_id INT;
+        _contact_details_id INT;
+        _personal_data_id INT;
+        _team_id INT;
+    BEGIN
+    -- check if team exists or this value is null
+        SELECT t.team_id from teams t WHERE t.name = _team_id;
+        IF FOUND THEN
+            RAISE EXCEPTION 'Team with tha ID does not exist';
+        end if;
+
+
+    -- check if current user exists in DB
+        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
+        IF FOUND THEN
+            RAISE EXCEPTION 'User with this PESEL number already exists.';
+        end if;
+
+        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+            cd.email = _email LIMIT 1 FOR UPDATE;
+         IF FOUND THEN
+            RAISE EXCEPTION 'User with this email or phone number already exists.';
+        end if;
+
+
+    -- insert competitor
+        INSERT INTO contact_details (
+                                     phone_number,
+                                     area_code,
+                                     email)
+        VALUES (
+                _phone_number,
+                _area_code,
+                _email
+               );
+
+        INSERT INTO personal_data (
+                                   first_name,
+                                   last_name,
+                                   pesel_number)
+        VALUES (
+            _first_name,
+            _last_name,
+            _pesel
+           );
+
+        SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+
+        IF NOT FOUND THEN
+            INSERT INTO address_data (
+                                      city,
+                                      house_number,
+                                      zip_code
+            ) VALUES (
+                    _city,
+                    _house_number,
+                    _zip_code
+                             );
+            SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+        end if;
+
+
+
+        SELECT pd.personal_data_id INTO _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel;
+
+        SELECT cd.contact_details_id INTO _contact_details_id FROM contact_details cd WHERE cd.email = _email
+                                                                                    AND cd.phone_number = _phone_number;
+
+
+        INSERT INTO competitors (
+                                 is_individual_player,
+                                 birth_date,
+                                 nationality,
+                                 team_id,
+                                 contact_details_id,
+                                 address_data_id,
+                                 personal_data_id
+        ) VALUES (
+                  _is_individual,
+                  _birth_date,
+                  _nationality,
+                  _team_id,
+                  _contact_details_id,
+                  _address_data_id,
+                  _personal_data_id
+        );
+
+        RAISE NOTICE 'Competitor has been added properly';
+
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_competitor(_first_name text, _last_name text, _pesel text, _is_individual boolean, _team_id integer, _phone_number text, _birth_date date, _nationality text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) OWNER TO postgres;
+
+--
+-- Name: add_participant(integer, integer, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_participant(_tournament_id integer, _competitor_id integer, _competitor_status text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _status_id int;
+    BEGIN
+    -- check if status id exists
+        SELECT competitor_statuses.status_id INTO _status_id FROM competitor_statuses WHERE
+                                                                        competitor_statuses.status = _competitor_status;
+        IF NOT FOUND THEN
+            INSERT INTO competitor_statuses (status) VALUES (_competitor_status);
+            SELECT competitor_statuses.status_id INTO _status_id FROM competitor_statuses WHERE
+                                                                        competitor_statuses.status = _competitor_status;
+        end if;
+
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if competitor id exists
+        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+
+        INSERT INTO participation (tournament_id,
+                                   competitor_id,
+                                   competitor_status_id
+        ) VALUES (
+                  _tournament_id,
+                  _competitor_id,
+                  _status_id
+                         );
+
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_participant(_tournament_id integer, _competitor_id integer, _competitor_status text) OWNER TO postgres;
+
+--
+-- Name: add_solo_result(integer, integer, numeric); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_solo_result(_tournament_id integer, _competitor_id integer, _solo_result numeric) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if competitor id exists
+        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+
+    -- insert solo result
+        INSERT INTO solo_results (
+                                  tournament_id,
+                                  competitor_id,
+                                  point_score
+        ) VALUES (
+                  _tournament_id,
+                  _competitor_id,
+                  _solo_result
+                         );
+
+        RAISE NOTICE 'Solo resul has been added successfully';
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_solo_result(_tournament_id integer, _competitor_id integer, _solo_result numeric) OWNER TO postgres;
+
+--
+-- Name: add_team(text, integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_team(_name text, _trainer_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+    -- check if trainer exists
+        SELECT trainers.trainer_id FROM trainers WHERE _trainer_id = trainers.trainer_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Trainer with that ID does not exist';
+        end if;
+
+    -- insert team
+        INSERT INTO teams (
+                           name,
+                           trainer_id
+        ) VALUES (
+                  _name,
+                  _trainer_id
+                         );
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_team(_name text, _trainer_id integer) OWNER TO postgres;
+
+--
+-- Name: add_team_result(integer, integer, numeric); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_team_result(_tournament_id integer, _team_id integer, _team_result numeric) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+    -- check if tournament id exists
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Tournament with that ID does not exist';
+        end if;
+
+    -- check if team id exists
+        SELECT team_id FROM teams WHERE team_id= _team_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Team with that ID does not exist';
+        end if;
+
+    -- insert solo result
+        INSERT INTO team_results (
+                                  tournament_id,
+                                  team_id,
+                                  point_score
+        ) VALUES (
+                  _tournament_id,
+                  _team_id,
+                  _team_result
+                         );
+
+        RAISE NOTICE 'Team resul has been added successfully';
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_team_result(_tournament_id integer, _team_id integer, _team_result numeric) OWNER TO postgres;
+
+--
+-- Name: add_tournament(text, text, text, text, timestamp with time zone, timestamp with time zone, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_tournament(_tournament_type_name text, _name text, _location_name text, _extra_location_info text, _start_datetime timestamp with time zone, _end_datetime timestamp with time zone, _organizer_name text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _location_id INT;
+        _tournament_type_id INT;
+        _organizer_id INT;
+    BEGIN
+       -- set transaction isolation level serializable;
+    -- lock tables
+        EXECUTE ' LOCK TABLE tournaments IN ACCESS EXCLUSIVE MODE';
+        EXECUTE 'LOCK TABLE locations IN ACCESS EXCLUSIVE MODE';
+        EXECUTE 'LOCK TABLE tournament_types IN ACCESS EXCLUSIVE MODE';
+        EXECUTE 'LOCK TABLE participation IN SHARE ROW EXCLUSIVE MODE';
+        EXECUTE 'LOCK TABLE solo_results IN SHARE ROW EXCLUSIVE MODE';
+        EXECUTE ' LOCK TABLE team_results IN SHARE ROW EXCLUSIVE MODE';
+        RAISE NOTICE 'TABLES WAS LOCKED PROPERLY. ADDING NEW DATA TO TABLE IS SAFE NOW';
+
+    -- check if tournament type exists
+        SELECT tt.type_id INTO _tournament_type_id FROM tournament_types tt WHERE UPPER(tt.name) = UPPER(_tournament_type_name) LIMIT 1;
+        IF NOT FOUND THEN
+            INSERT INTO tournament_types (name) VALUES (UPPER(_tournament_type_name));
+            SELECT tt.type_id INTO _tournament_type_id FROM tournament_types tt WHERE UPPER(tt.name) = UPPER(_tournament_type_name) LIMIT 1;
+            RAISE NOTICE 'ADDING NEW TOURNAMENT TYPE';
+        end if;
+
+    -- check if location exists
+        SELECT l.location_id  INTO _location_id FROM locations l WHERE upper(l.location) = upper(_location_name) LIMIT 1;
+        IF NOT FOUND THEN
+            INSERT INTO locations (location, extra_info) VALUES (_location_name, _extra_location_info);
+            SELECT l.location_id  INTO _location_id FROM locations l WHERE upper(l.location) = upper(_location_name) LIMIT 1;
+            RAISE NOTICE 'ADDING NEW LOCATION';
+        end if;
+
+    -- check if organizer exists
+        SELECT o.organizer_id  INTO _organizer_id FROM organizers o WHERE upper(o.name) = upper(_organizer_name) LIMIT 1;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'This organizer does not exist in database';
+        end if;
+
+    -- insert tournaments table
+        INSERT INTO tournaments (
+            tournament_type_id,
+            name,
+            location_id,
+            start_datetime,
+            end_datetime,
+            organizer_id
+        ) VALUES (
+            _tournament_type_id,
+            _name,
+            _location_id,
+            _start_datetime,
+            _end_datetime,
+            _organizer_id
+        );
+        RAISE NOTICE 'ADDING NEW TOURNAMENT';
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_tournament(_tournament_type_name text, _name text, _location_name text, _extra_location_info text, _start_datetime timestamp with time zone, _end_datetime timestamp with time zone, _organizer_name text) OWNER TO postgres;
+
+--
+-- Name: add_trainer(text, text, text, text, text, text, text, integer, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.add_trainer(_first_name text, _last_name text, _pesel text, _phone_number text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _address_data_id INT;
+        _contact_details_id INT;
+        _personal_data_id INT;
+    BEGIN
+    -- check if current trainer exists in DB
+        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
+        IF FOUND THEN
+            RAISE EXCEPTION 'User with this PESEL number already exists.';
+        end if;
+
+        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+            cd.email = _email LIMIT 1 FOR UPDATE;
+         IF FOUND THEN
+            RAISE EXCEPTION 'User with this email or phone number already exists.';
+        end if;
+
+
+    -- insert trainer
+        INSERT INTO contact_details (
+                                     phone_number,
+                                     area_code,
+                                     email)
+        VALUES (
+                _phone_number,
+                _area_code,
+                _email
+               );
+
+        INSERT INTO personal_data (
+                                   first_name,
+                                   last_name,
+                                   pesel_number)
+        VALUES (
+            _first_name,
+            _last_name,
+            _pesel
+           );
+
+        SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+
+        IF NOT FOUND THEN
+            INSERT INTO address_data (
+                                      city,
+                                      house_number,
+                                      zip_code
+            ) VALUES (
+                    _city,
+                    _house_number,
+                    _zip_code
+                             );
+            SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = _city
+                                                                               AND ad.house_number = _house_number
+                                                                               AND ad.zip_code = _zip_code;
+        end if;
+
+
+
+        SELECT pd.personal_data_id INTO _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = _pesel;
+
+        SELECT cd.contact_details_id INTO _contact_details_id FROM contact_details cd WHERE cd.email = _email
+                                                                                    AND cd.phone_number = _phone_number;
+
+
+        INSERT INTO trainers (
+                                 contact_details_id,
+                                 address_data_id,
+                                 personal_data_id
+        ) VALUES (
+                  _contact_details_id,
+                  _address_data_id,
+                  _personal_data_id
+        );
+
+        RAISE NOTICE 'Trainer has been added properly';
+    end;
+    $$;
+
+
+ALTER FUNCTION public.add_trainer(_first_name text, _last_name text, _pesel text, _phone_number text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) OWNER TO postgres;
+
+--
+-- Name: create_role(character varying); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.create_role(IN role_name character varying)
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        IF NOT exists(SELECT FROM pg_roles WHERE rolname = role_name) THEN
+            EXECUTE 'CREATE ROLE ' || role_name;
+            RAISE NOTICE 'Role % has been created', role_name;
+        ELSE
+            RAISE NOTICE 'Role % is already exists', role_name;
+        end if;
+    end;
+    $$;
+
+
+ALTER PROCEDURE public.create_role(IN role_name character varying) OWNER TO postgres;
+
+--
+-- Name: create_user(character varying, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.create_user(IN user_name character varying, IN user_password character varying)
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _role_id int;
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = user_name) THEN
+            EXECUTE 'CREATE ROLE ' || user_name || ' WITH LOGIN PASSWORD ''' || user_password || '''';
+            RAISE NOTICE 'User % has been created', user_name;
+        ELSE
+            RAISE NOTICE 'User % is already exists', user_name;
+        END IF;
+    END;
+    $$;
+
+
+ALTER PROCEDURE public.create_user(IN user_name character varying, IN user_password character varying) OWNER TO postgres;
+
+--
+-- Name: delete_competitor(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_competitor(_competitor_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT competitors.competitor_id FROM competitors WHERE competitor_id = _competitor_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+        DELETE FROM competitors WHERE competitor_id = _competitor_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_competitor(_competitor_id integer) OWNER TO postgres;
+
+--
+-- Name: delete_participation(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_participation(_participation_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT participation_id FROM participation WHERE participation_id = _participation_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'participation with that ID does not exist';
+        end if;
+        DELETE FROM participation WHERE participation_id = _participation_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_participation(_participation_id integer) OWNER TO postgres;
+
+--
+-- Name: delete_solo_result(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_solo_result(_result_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT result_id FROM solo_results WHERE result_id = _result_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'result with that ID does not exist';
+        end if;
+        DELETE FROM solo_results WHERE result_id = _result_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_solo_result(_result_id integer) OWNER TO postgres;
+
+--
+-- Name: delete_team_result(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_team_result(_result_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT result_id FROM team_results WHERE result_id = _result_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'result with that ID does not exist';
+        end if;
+        DELETE FROM team_results WHERE result_id = _result_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_team_result(_result_id integer) OWNER TO postgres;
+
+--
+-- Name: delete_tournament(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_tournament(_tournament_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT tournaments.tournament_id FROM tournaments WHERE tournament_id = _tournament_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'tournament with that ID does not exist';
+        end if;
+        DELETE FROM tournaments WHERE tournament_id = _tournament_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_tournament(_tournament_id integer) OWNER TO postgres;
+
+--
+-- Name: delete_trainer(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_trainer(_trainer_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        SELECT trainer_id FROM trainers WHERE trainer_id = _trainer_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'trainer with that ID does not exist';
+        end if;
+        DELETE FROM trainers WHERE _trainer_id = trainer_id;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.delete_trainer(_trainer_id integer) OWNER TO postgres;
+
+--
+-- Name: grant_dml_type_views_to_role(character varying, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.grant_dml_type_views_to_role(IN dml_type character varying, IN role character varying)
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        proper_DML_type bool := upper(DML_type) = 'SELECT'
+        OR upper(DML_type) = 'INSERT' OR upper(DML_type) = 'SELECT';
+    BEGIN
+        IF EXISTS(SELECT FROM pg_roles WHERE rolname=role) AND proper_DML_type THEN
+            EXECUTE 'GRANT ' || DML_type || ' ON public_competitors_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_competitors_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON public_teams_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_teams_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON public_tournament_info TO ' || role;
+            RAISE NOTICE 'GRANT % ON public_tournament_info TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON solo_results TO ' || role;
+            RAISE NOTICE 'GRANT % ON solo_results TO %', DML_type, role;
+            EXECUTE 'GRANT ' || DML_type || ' ON team_results TO ' || role;
+            RAISE NOTICE 'GRANT % ON team_results TO %', DML_type, role;
+        ELSE
+            RAISE NOTICE '% role does not exist', role;
+        end if;
+    END
+    $$;
+
+
+ALTER PROCEDURE public.grant_dml_type_views_to_role(IN dml_type character varying, IN role character varying) OWNER TO postgres;
+
+--
+-- Name: grant_role_to_user(character varying, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.grant_role_to_user(IN role character varying, IN user_name character varying)
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        IF NOT pg_has_role(user_name, role, role) AND
+           exists(SELECT FROM pg_roles WHERE user_name = rolname ) THEN
+            EXECUTE 'GRANT ' || role || ' TO ' || user_name;
+            RAISE NOTICE  'Role % has been granted to user %', role, user_name;
+        ELSE
+            RAISE NOTICE 'User % arleady has role %', user_name, role;
+        END IF;
+    end;
+    $$;
+
+
+ALTER PROCEDURE public.grant_role_to_user(IN role character varying, IN user_name character varying) OWNER TO postgres;
+
+--
+-- Name: insert_new_payment_status(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.insert_new_payment_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        _amount INT := 100;
+        _payment_date timestamp := now();
+        _status_id INT := 1;
+    BEGIN
+        INSERT INTO payments (amount,
+                              payment_date,
+                              status_id
+        ) VALUES (
+                  _amount,
+                  _payment_date,
+                  _status_id
+                         );
+        RETURN NEW;
+    end;
+    $$;
+
+
+ALTER FUNCTION public.insert_new_payment_status() OWNER TO postgres;
+
+--
+-- Name: show_tables(); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.show_tables()
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+        r RECORD;
+        i int := 1;
+    BEGIN
+        FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+        LOOP
+            RAISE NOTICE '%: %',  i, r.tablename;
+            i := i + 1;
+        END LOOP;
+    END $$;
+
+
+ALTER PROCEDURE public.show_tables() OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: address_data; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.address_data (
+    address_data_id integer NOT NULL,
+    city text NOT NULL,
+    house_number integer,
+    zip_code text
+);
+
+
+ALTER TABLE public.address_data OWNER TO postgres;
+
+--
+-- Name: address_data_address_data_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.address_data_address_data_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.address_data_address_data_id_seq OWNER TO postgres;
+
+--
+-- Name: address_data_address_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.address_data_address_data_id_seq OWNED BY public.address_data.address_data_id;
+
+
+--
+-- Name: competitor_statuses; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.competitor_statuses (
+    status_id integer NOT NULL,
+    status text NOT NULL
+);
+
+
+ALTER TABLE public.competitor_statuses OWNER TO postgres;
+
+--
+-- Name: competitor_statuses_status_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.competitor_statuses_status_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.competitor_statuses_status_id_seq OWNER TO postgres;
+
+--
+-- Name: competitor_statuses_status_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.competitor_statuses_status_id_seq OWNED BY public.competitor_statuses.status_id;
+
+
+--
+-- Name: competitors; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.competitors (
+    competitor_id integer NOT NULL,
+    is_individual_player boolean NOT NULL,
+    birth_date date NOT NULL,
+    nationality text NOT NULL,
+    team_id integer,
+    contact_details_id integer,
+    address_data_id integer,
+    personal_data_id integer
+);
+
+
+ALTER TABLE public.competitors OWNER TO postgres;
+
+--
+-- Name: competitors_competitor_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.competitors_competitor_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.competitors_competitor_id_seq OWNER TO postgres;
+
+--
+-- Name: competitors_competitor_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.competitors_competitor_id_seq OWNED BY public.competitors.competitor_id;
+
+
+--
+-- Name: contact_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.contact_details (
+    contact_details_id integer NOT NULL,
+    phone_number text NOT NULL,
+    area_code text DEFAULT '+48'::text,
+    email text NOT NULL,
+    CONSTRAINT contact_details_area_code_check CHECK ((char_length(area_code) = 3)),
+    CONSTRAINT contact_details_phone_number_check CHECK ((char_length(phone_number) = 9))
+);
+
+
+ALTER TABLE public.contact_details OWNER TO postgres;
+
+--
+-- Name: contact_details_contact_details_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.contact_details_contact_details_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.contact_details_contact_details_id_seq OWNER TO postgres;
+
+--
+-- Name: contact_details_contact_details_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.contact_details_contact_details_id_seq OWNED BY public.contact_details.contact_details_id;
+
+
+--
+-- Name: locations; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.locations (
+    location_id integer NOT NULL,
+    location text NOT NULL,
+    extra_info text DEFAULT ''::text
+);
+
+
+ALTER TABLE public.locations OWNER TO postgres;
+
+--
+-- Name: locations_location_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.locations_location_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.locations_location_id_seq OWNER TO postgres;
+
+--
+-- Name: locations_location_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.locations_location_id_seq OWNED BY public.locations.location_id;
+
+
+--
+-- Name: organizers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.organizers (
+    organizer_id integer NOT NULL,
+    name text NOT NULL,
+    user_id integer
+);
+
+
+ALTER TABLE public.organizers OWNER TO postgres;
+
+--
+-- Name: organizers_organizer_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.organizers_organizer_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.organizers_organizer_id_seq OWNER TO postgres;
+
+--
+-- Name: organizers_organizer_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.organizers_organizer_id_seq OWNED BY public.organizers.organizer_id;
+
+
+--
+-- Name: participation; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.participation (
+    participation_id integer NOT NULL,
+    tournament_id integer,
+    competitor_id integer,
+    competitor_status_id integer
+);
+
+
+ALTER TABLE public.participation OWNER TO postgres;
+
+--
+-- Name: participation_participation_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.participation_participation_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.participation_participation_id_seq OWNER TO postgres;
+
+--
+-- Name: participation_participation_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.participation_participation_id_seq OWNED BY public.participation.participation_id;
+
+
+--
+-- Name: payment_statuses; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payment_statuses (
+    status_id integer NOT NULL,
+    status text NOT NULL
+);
+
+
+ALTER TABLE public.payment_statuses OWNER TO postgres;
+
+--
+-- Name: payment_statuses_status_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.payment_statuses_status_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.payment_statuses_status_id_seq OWNER TO postgres;
+
+--
+-- Name: payment_statuses_status_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.payment_statuses_status_id_seq OWNED BY public.payment_statuses.status_id;
+
+
+--
+-- Name: payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payments (
+    payment_id integer NOT NULL,
+    user_id integer,
+    amount numeric(8,2) NOT NULL,
+    payment_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    status_id integer
+);
+
+
+ALTER TABLE public.payments OWNER TO postgres;
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.payments_payment_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.payments_payment_id_seq OWNER TO postgres;
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.payments_payment_id_seq OWNED BY public.payments.payment_id;
+
+
+--
+-- Name: personal_data; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.personal_data (
+    personal_data_id integer NOT NULL,
+    first_name text NOT NULL,
+    last_name text NOT NULL,
+    pesel_number text,
+    CONSTRAINT personal_data_pesel_number_check CHECK ((char_length(pesel_number) = 11))
+);
+
+
+ALTER TABLE public.personal_data OWNER TO postgres;
+
+--
+-- Name: personal_data_personal_data_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.personal_data_personal_data_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.personal_data_personal_data_id_seq OWNER TO postgres;
+
+--
+-- Name: personal_data_personal_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.personal_data_personal_data_id_seq OWNED BY public.personal_data.personal_data_id;
+
+
+--
+-- Name: teams; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.teams (
+    team_id integer NOT NULL,
+    name text NOT NULL,
+    trainer_id integer
+);
+
+
+ALTER TABLE public.teams OWNER TO postgres;
+
+--
+-- Name: tournaments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tournaments (
+    tournament_id integer NOT NULL,
+    tournament_type_id integer,
+    name text NOT NULL,
+    location_id integer,
+    start_datetime timestamp with time zone NOT NULL,
+    end_datetime timestamp with time zone NOT NULL,
+    organizer_id integer
+);
+
+
+ALTER TABLE public.tournaments OWNER TO postgres;
+
+--
+-- Name: public_competitors_info; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.public_competitors_info AS
+ SELECT p.participation_id,
+    c.competitor_id AS "Competitor ID",
+    pd.first_name,
+    pd.last_name,
+    ad.city,
+    cs.status,
+    t2.tournament_id,
+    t2.name AS "Tournament name",
+    c.is_individual_player AS "IS individual player",
+    c.team_id AS "Team ID",
+    t.name AS "Team name",
+    c.birth_date AS "Birth date",
+    c.nationality AS "Nationality"
+   FROM ((((((public.participation p
+     JOIN public.competitors c ON ((c.competitor_id = p.competitor_id)))
+     JOIN public.competitor_statuses cs ON ((cs.status_id = p.competitor_status_id)))
+     JOIN public.personal_data pd ON ((pd.personal_data_id = c.personal_data_id)))
+     JOIN public.address_data ad ON ((ad.address_data_id = c.address_data_id)))
+     LEFT JOIN public.teams t ON ((t.team_id = c.team_id)))
+     JOIN public.tournaments t2 ON ((t2.tournament_id = p.tournament_id)));
+
+
+ALTER VIEW public.public_competitors_info OWNER TO postgres;
+
+--
+-- Name: trainers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.trainers (
+    trainer_id integer NOT NULL,
+    contact_details_id integer,
+    address_data_id integer,
+    personal_data_id integer
+);
+
+
+ALTER TABLE public.trainers OWNER TO postgres;
+
+--
+-- Name: public_teams_info; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.public_teams_info AS
+ SELECT t.team_id,
+    t.name AS "Team name",
+    t2.trainer_id,
+    pd.first_name,
+    pd.last_name,
+    ad.city
+   FROM (((public.teams t
+     JOIN public.trainers t2 ON ((t2.trainer_id = t.trainer_id)))
+     JOIN public.personal_data pd ON ((pd.personal_data_id = t2.personal_data_id)))
+     JOIN public.address_data ad ON ((ad.address_data_id = t2.address_data_id)));
+
+
+ALTER VIEW public.public_teams_info OWNER TO postgres;
+
+--
+-- Name: tournament_types; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tournament_types (
+    type_id integer NOT NULL,
+    name text DEFAULT 'Other'::text NOT NULL
+);
+
+
+ALTER TABLE public.tournament_types OWNER TO postgres;
+
+--
+-- Name: public_tournament_info; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.public_tournament_info AS
+ SELECT t.tournament_id AS "Tournament ID",
+    tt.name AS "Tournament type",
+    t.name AS "Tournament name",
+    l.location AS "Tournament location",
+    l.extra_info AS "Additional location info",
+    t.start_datetime AS "Tournament starts",
+    t.end_datetime AS "Tournament ends",
+    o.name AS "Organizer name"
+   FROM (((public.tournaments t
+     JOIN public.tournament_types tt ON ((tt.type_id = t.tournament_type_id)))
+     JOIN public.locations l ON ((t.location_id = l.location_id)))
+     JOIN public.organizers o ON ((o.organizer_id = t.organizer_id)));
+
+
+ALTER VIEW public.public_tournament_info OWNER TO postgres;
+
+--
+-- Name: roles; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.roles (
+    role_id integer NOT NULL,
+    name text DEFAULT 'Normal user'::text NOT NULL,
+    rights text
+);
+
+
+ALTER TABLE public.roles OWNER TO postgres;
+
+--
+-- Name: roles_role_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.roles_role_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.roles_role_id_seq OWNER TO postgres;
+
+--
+-- Name: roles_role_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.roles_role_id_seq OWNED BY public.roles.role_id;
+
+
+--
+-- Name: solo_results; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.solo_results (
+    result_id integer NOT NULL,
+    tournament_id integer,
+    competitor_id integer,
+    point_score numeric(7,3)
+);
+
+
+ALTER TABLE public.solo_results OWNER TO postgres;
+
+--
+-- Name: solo_results_info; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.solo_results_info AS
+ SELECT sr.result_id,
+    sr.competitor_id,
+    pd.first_name,
+    pd.last_name,
+    sr.tournament_id,
+    t.name AS "Tournament name",
+    sr.point_score
+   FROM (((public.solo_results sr
+     JOIN public.competitors c ON ((c.competitor_id = sr.competitor_id)))
+     JOIN public.personal_data pd ON ((pd.personal_data_id = c.personal_data_id)))
+     JOIN public.tournaments t ON ((t.tournament_id = sr.tournament_id)));
+
+
+ALTER VIEW public.solo_results_info OWNER TO postgres;
+
+--
+-- Name: solo_results_result_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.solo_results_result_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.solo_results_result_id_seq OWNER TO postgres;
+
+--
+-- Name: solo_results_result_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.solo_results_result_id_seq OWNED BY public.solo_results.result_id;
+
+
+--
+-- Name: system_logs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.system_logs (
+    log_id integer NOT NULL,
+    user_id integer,
+    log_content text
+);
+
+
+ALTER TABLE public.system_logs OWNER TO postgres;
+
+--
+-- Name: system_logs_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.system_logs_log_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.system_logs_log_id_seq OWNER TO postgres;
+
+--
+-- Name: system_logs_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.system_logs_log_id_seq OWNED BY public.system_logs.log_id;
+
+
+--
+-- Name: team_results; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.team_results (
+    result_id integer NOT NULL,
+    tournament_id integer,
+    team_id integer,
+    point_score numeric(7,3)
+);
+
+
+ALTER TABLE public.team_results OWNER TO postgres;
+
+--
+-- Name: team_results_info; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.team_results_info AS
+ SELECT tr.result_id,
+    tr.tournament_id,
+    t.name AS "Tournament name",
+    tr.team_id,
+    t2.name AS "Team name",
+    tr.point_score
+   FROM ((public.team_results tr
+     JOIN public.tournaments t ON ((t.tournament_id = tr.tournament_id)))
+     JOIN public.teams t2 ON ((t2.team_id = tr.team_id)));
+
+
+ALTER VIEW public.team_results_info OWNER TO postgres;
+
+--
+-- Name: team_results_result_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.team_results_result_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.team_results_result_id_seq OWNER TO postgres;
+
+--
+-- Name: team_results_result_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.team_results_result_id_seq OWNED BY public.team_results.result_id;
+
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.teams_team_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.teams_team_id_seq OWNER TO postgres;
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.teams_team_id_seq OWNED BY public.teams.team_id;
+
+
+--
+-- Name: tournament_types_type_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.tournament_types_type_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.tournament_types_type_id_seq OWNER TO postgres;
+
+--
+-- Name: tournament_types_type_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.tournament_types_type_id_seq OWNED BY public.tournament_types.type_id;
+
+
+--
+-- Name: tournaments_tournament_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.tournaments_tournament_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.tournaments_tournament_id_seq OWNER TO postgres;
+
+--
+-- Name: tournaments_tournament_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.tournaments_tournament_id_seq OWNED BY public.tournaments.tournament_id;
+
+
+--
+-- Name: trainers_trainer_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.trainers_trainer_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.trainers_trainer_id_seq OWNER TO postgres;
+
+--
+-- Name: trainers_trainer_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.trainers_trainer_id_seq OWNED BY public.trainers.trainer_id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    user_id integer NOT NULL,
+    name text NOT NULL,
+    role_id integer,
+    contact_details_id integer,
+    address_data_id integer,
+    personal_data_id integer
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- Name: users_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.users_user_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.users_user_id_seq OWNER TO postgres;
+
+--
+-- Name: users_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.users_user_id_seq OWNED BY public.users.user_id;
+
+
+--
+-- Name: address_data address_data_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.address_data ALTER COLUMN address_data_id SET DEFAULT nextval('public.address_data_address_data_id_seq'::regclass);
+
+
+--
+-- Name: competitor_statuses status_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitor_statuses ALTER COLUMN status_id SET DEFAULT nextval('public.competitor_statuses_status_id_seq'::regclass);
+
+
+--
+-- Name: competitors competitor_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors ALTER COLUMN competitor_id SET DEFAULT nextval('public.competitors_competitor_id_seq'::regclass);
+
+
+--
+-- Name: contact_details contact_details_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.contact_details ALTER COLUMN contact_details_id SET DEFAULT nextval('public.contact_details_contact_details_id_seq'::regclass);
+
+
+--
+-- Name: locations location_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locations ALTER COLUMN location_id SET DEFAULT nextval('public.locations_location_id_seq'::regclass);
+
+
+--
+-- Name: organizers organizer_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.organizers ALTER COLUMN organizer_id SET DEFAULT nextval('public.organizers_organizer_id_seq'::regclass);
+
+
+--
+-- Name: participation participation_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.participation ALTER COLUMN participation_id SET DEFAULT nextval('public.participation_participation_id_seq'::regclass);
+
+
+--
+-- Name: payment_statuses status_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_statuses ALTER COLUMN status_id SET DEFAULT nextval('public.payment_statuses_status_id_seq'::regclass);
+
+
+--
+-- Name: payments payment_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments ALTER COLUMN payment_id SET DEFAULT nextval('public.payments_payment_id_seq'::regclass);
+
+
+--
+-- Name: personal_data personal_data_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.personal_data ALTER COLUMN personal_data_id SET DEFAULT nextval('public.personal_data_personal_data_id_seq'::regclass);
+
+
+--
+-- Name: roles role_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.roles ALTER COLUMN role_id SET DEFAULT nextval('public.roles_role_id_seq'::regclass);
+
+
+--
+-- Name: solo_results result_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.solo_results ALTER COLUMN result_id SET DEFAULT nextval('public.solo_results_result_id_seq'::regclass);
+
+
+--
+-- Name: system_logs log_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_logs ALTER COLUMN log_id SET DEFAULT nextval('public.system_logs_log_id_seq'::regclass);
+
+
+--
+-- Name: team_results result_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.team_results ALTER COLUMN result_id SET DEFAULT nextval('public.team_results_result_id_seq'::regclass);
+
+
+--
+-- Name: teams team_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams ALTER COLUMN team_id SET DEFAULT nextval('public.teams_team_id_seq'::regclass);
+
+
+--
+-- Name: tournament_types type_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types ALTER COLUMN type_id SET DEFAULT nextval('public.tournament_types_type_id_seq'::regclass);
+
+
+--
+-- Name: tournaments tournament_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournaments ALTER COLUMN tournament_id SET DEFAULT nextval('public.tournaments_tournament_id_seq'::regclass);
+
+
+--
+-- Name: trainers trainer_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.trainers ALTER COLUMN trainer_id SET DEFAULT nextval('public.trainers_trainer_id_seq'::regclass);
+
+
+--
+-- Name: users user_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN user_id SET DEFAULT nextval('public.users_user_id_seq'::regclass);
+
+
+--
+-- Data for Name: address_data; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.address_data (address_data_id, city, house_number, zip_code) FROM stdin;
+\.
+
+
+--
+-- Data for Name: competitor_statuses; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.competitor_statuses (status_id, status) FROM stdin;
+\.
+
+
+--
+-- Data for Name: competitors; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.competitors (competitor_id, is_individual_player, birth_date, nationality, team_id, contact_details_id, address_data_id, personal_data_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: contact_details; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.contact_details (contact_details_id, phone_number, area_code, email) FROM stdin;
+\.
+
+
+--
+-- Data for Name: locations; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.locations (location_id, location, extra_info) FROM stdin;
+\.
+
+
+--
+-- Data for Name: organizers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.organizers (organizer_id, name, user_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: participation; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.participation (participation_id, tournament_id, competitor_id, competitor_status_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: payment_statuses; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payment_statuses (status_id, status) FROM stdin;
+\.
+
+
+--
+-- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payments (payment_id, user_id, amount, payment_date, status_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: personal_data; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.personal_data (personal_data_id, first_name, last_name, pesel_number) FROM stdin;
+\.
+
+
+--
+-- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.roles (role_id, name, rights) FROM stdin;
+\.
+
+
+--
+-- Data for Name: solo_results; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.solo_results (result_id, tournament_id, competitor_id, point_score) FROM stdin;
+\.
+
+
+--
+-- Data for Name: system_logs; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.system_logs (log_id, user_id, log_content) FROM stdin;
+\.
+
+
+--
+-- Data for Name: team_results; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.team_results (result_id, tournament_id, team_id, point_score) FROM stdin;
+\.
+
+
+--
+-- Data for Name: teams; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.teams (team_id, name, trainer_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: tournament_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.tournament_types (type_id, name) FROM stdin;
+\.
+
+
+--
+-- Data for Name: tournaments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.tournaments (tournament_id, tournament_type_id, name, location_id, start_datetime, end_datetime, organizer_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: trainers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.trainers (trainer_id, contact_details_id, address_data_id, personal_data_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.users (user_id, name, role_id, contact_details_id, address_data_id, personal_data_id) FROM stdin;
+\.
+
+
+--
+-- Name: address_data_address_data_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.address_data_address_data_id_seq', 1, false);
+
+
+--
+-- Name: competitor_statuses_status_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.competitor_statuses_status_id_seq', 1, false);
+
+
+--
+-- Name: competitors_competitor_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.competitors_competitor_id_seq', 1, false);
+
+
+--
+-- Name: contact_details_contact_details_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.contact_details_contact_details_id_seq', 1, false);
+
+
+--
+-- Name: locations_location_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.locations_location_id_seq', 1, false);
+
+
+--
+-- Name: organizers_organizer_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.organizers_organizer_id_seq', 1, false);
+
+
+--
+-- Name: participation_participation_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.participation_participation_id_seq', 1, false);
+
+
+--
+-- Name: payment_statuses_status_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.payment_statuses_status_id_seq', 1, false);
+
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.payments_payment_id_seq', 1, false);
+
+
+--
+-- Name: personal_data_personal_data_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.personal_data_personal_data_id_seq', 1, false);
+
+
+--
+-- Name: roles_role_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.roles_role_id_seq', 1, false);
+
+
+--
+-- Name: solo_results_result_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.solo_results_result_id_seq', 1, false);
+
+
+--
+-- Name: system_logs_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.system_logs_log_id_seq', 1, false);
+
+
+--
+-- Name: team_results_result_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.team_results_result_id_seq', 1, false);
+
+
+--
+-- Name: teams_team_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.teams_team_id_seq', 1, false);
+
+
+--
+-- Name: tournament_types_type_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.tournament_types_type_id_seq', 1, false);
+
+
+--
+-- Name: tournaments_tournament_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.tournaments_tournament_id_seq', 1, true);
+
+
+--
+-- Name: trainers_trainer_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.trainers_trainer_id_seq', 1, false);
+
+
+--
+-- Name: users_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.users_user_id_seq', 1, false);
+
+
+--
+-- Name: address_data address_data_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.address_data
+    ADD CONSTRAINT address_data_pkey PRIMARY KEY (address_data_id);
+
+
+--
+-- Name: competitor_statuses competitor_statuses_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitor_statuses
+    ADD CONSTRAINT competitor_statuses_pkey PRIMARY KEY (status_id);
+
+
+--
+-- Name: competitor_statuses competitor_statuses_status_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitor_statuses
+    ADD CONSTRAINT competitor_statuses_status_key UNIQUE (status);
+
+
+--
+-- Name: competitors competitors_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors
+    ADD CONSTRAINT competitors_pkey PRIMARY KEY (competitor_id);
+
+
+--
+-- Name: contact_details contact_details_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.contact_details
+    ADD CONSTRAINT contact_details_email_key UNIQUE (email);
+
+
+--
+-- Name: contact_details contact_details_phone_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.contact_details
+    ADD CONSTRAINT contact_details_phone_number_key UNIQUE (phone_number);
+
+
+--
+-- Name: contact_details contact_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.contact_details
+    ADD CONSTRAINT contact_details_pkey PRIMARY KEY (contact_details_id);
+
+
+--
+-- Name: locations locations_location_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locations
+    ADD CONSTRAINT locations_location_key UNIQUE (location);
+
+
+--
+-- Name: locations locations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locations
+    ADD CONSTRAINT locations_pkey PRIMARY KEY (location_id);
+
+
+--
+-- Name: organizers organizers_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.organizers
+    ADD CONSTRAINT organizers_name_key UNIQUE (name);
+
+
+--
+-- Name: organizers organizers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.organizers
+    ADD CONSTRAINT organizers_pkey PRIMARY KEY (organizer_id);
+
+
+--
+-- Name: participation participation_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.participation
+    ADD CONSTRAINT participation_pkey PRIMARY KEY (participation_id);
+
+
+--
+-- Name: payment_statuses payment_statuses_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_statuses
+    ADD CONSTRAINT payment_statuses_pkey PRIMARY KEY (status_id);
+
+
+--
+-- Name: payment_statuses payment_statuses_status_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_statuses
+    ADD CONSTRAINT payment_statuses_status_key UNIQUE (status);
+
+
+--
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_pkey PRIMARY KEY (payment_id);
+
+
+--
+-- Name: personal_data personal_data_pesel_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.personal_data
+    ADD CONSTRAINT personal_data_pesel_number_key UNIQUE (pesel_number);
+
+
+--
+-- Name: personal_data personal_data_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.personal_data
+    ADD CONSTRAINT personal_data_pkey PRIMARY KEY (personal_data_id);
+
+
+--
+-- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_name_key UNIQUE (name);
+
+
+--
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_pkey PRIMARY KEY (role_id);
+
+
+--
+-- Name: solo_results solo_results_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.solo_results
+    ADD CONSTRAINT solo_results_pkey PRIMARY KEY (result_id);
+
+
+--
+-- Name: system_logs system_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_logs
+    ADD CONSTRAINT system_logs_pkey PRIMARY KEY (log_id);
+
+
+--
+-- Name: team_results team_results_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.team_results
+    ADD CONSTRAINT team_results_pkey PRIMARY KEY (result_id);
+
+
+--
+-- Name: teams teams_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_name_key UNIQUE (name);
+
+
+--
+-- Name: teams teams_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_pkey PRIMARY KEY (team_id);
+
+
+--
+-- Name: tournament_types tournament_types_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types
+    ADD CONSTRAINT tournament_types_name_key UNIQUE (name);
+
+
+--
+-- Name: tournament_types tournament_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types
+    ADD CONSTRAINT tournament_types_pkey PRIMARY KEY (type_id);
+
+
+--
+-- Name: tournaments tournaments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_pkey PRIMARY KEY (tournament_id);
+
+
+--
+-- Name: trainers trainers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.trainers
+    ADD CONSTRAINT trainers_pkey PRIMARY KEY (trainer_id);
+
+
+--
+-- Name: users users_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_name_key UNIQUE (name);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: participation insert_new_payment_trigger; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER insert_new_payment_trigger AFTER INSERT ON public.participation FOR EACH ROW EXECUTE FUNCTION public.insert_new_payment_status();
+
+
+--
+-- Name: competitors competitors_address_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors
+    ADD CONSTRAINT competitors_address_data_id_fkey FOREIGN KEY (address_data_id) REFERENCES public.address_data(address_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: competitors competitors_contact_details_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors
+    ADD CONSTRAINT competitors_contact_details_id_fkey FOREIGN KEY (contact_details_id) REFERENCES public.contact_details(contact_details_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: competitors competitors_personal_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors
+    ADD CONSTRAINT competitors_personal_data_id_fkey FOREIGN KEY (personal_data_id) REFERENCES public.personal_data(personal_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: competitors competitors_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.competitors
+    ADD CONSTRAINT competitors_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON UPDATE CASCADE ON DELETE CASCADE DEFERRABLE;
+
+
+--
+-- Name: organizers organizers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.organizers
+    ADD CONSTRAINT organizers_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: participation participation_competitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.participation
+    ADD CONSTRAINT participation_competitor_id_fkey FOREIGN KEY (competitor_id) REFERENCES public.competitors(competitor_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: participation participation_competitor_status_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.participation
+    ADD CONSTRAINT participation_competitor_status_id_fkey FOREIGN KEY (competitor_status_id) REFERENCES public.competitor_statuses(status_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: participation participation_tournament_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.participation
+    ADD CONSTRAINT participation_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(tournament_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: payments payments_status_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_status_id_fkey FOREIGN KEY (status_id) REFERENCES public.payment_statuses(status_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: payments payments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payments
+    ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: solo_results solo_results_competitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.solo_results
+    ADD CONSTRAINT solo_results_competitor_id_fkey FOREIGN KEY (competitor_id) REFERENCES public.competitors(competitor_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: solo_results solo_results_tournament_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.solo_results
+    ADD CONSTRAINT solo_results_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(tournament_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: system_logs system_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_logs
+    ADD CONSTRAINT system_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE SET NULL DEFERRABLE;
+
+
+--
+-- Name: team_results team_results_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.team_results
+    ADD CONSTRAINT team_results_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: team_results team_results_tournament_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.team_results
+    ADD CONSTRAINT team_results_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(tournament_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: teams teams_trainer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_trainer_id_fkey FOREIGN KEY (trainer_id) REFERENCES public.trainers(trainer_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: tournaments tournaments_location_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.locations(location_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: tournaments tournaments_organizer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_organizer_id_fkey FOREIGN KEY (organizer_id) REFERENCES public.organizers(organizer_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: tournaments tournaments_tournament_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_tournament_type_id_fkey FOREIGN KEY (tournament_type_id) REFERENCES public.tournament_types(type_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: trainers trainers_address_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.trainers
+    ADD CONSTRAINT trainers_address_data_id_fkey FOREIGN KEY (address_data_id) REFERENCES public.address_data(address_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: trainers trainers_contact_details_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.trainers
+    ADD CONSTRAINT trainers_contact_details_id_fkey FOREIGN KEY (contact_details_id) REFERENCES public.contact_details(contact_details_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: trainers trainers_personal_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.trainers
+    ADD CONSTRAINT trainers_personal_data_id_fkey FOREIGN KEY (personal_data_id) REFERENCES public.personal_data(personal_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: users users_address_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_address_data_id_fkey FOREIGN KEY (address_data_id) REFERENCES public.address_data(address_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: users users_contact_details_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_contact_details_id_fkey FOREIGN KEY (contact_details_id) REFERENCES public.contact_details(contact_details_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: users users_personal_data_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_personal_data_id_fkey FOREIGN KEY (personal_data_id) REFERENCES public.personal_data(personal_data_id) ON UPDATE CASCADE ON DELETE RESTRICT DEFERRABLE;
+
+
+--
+-- Name: users users_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(role_id) ON UPDATE CASCADE ON DELETE SET NULL DEFERRABLE;
+
+
+--
+-- Name: FUNCTION add_competitor(_first_name text, _last_name text, _pesel text, _is_individual boolean, _team_id integer, _phone_number text, _birth_date date, _nationality text, _area_code text, _email text, _city text, _house_number integer, _zip_code text); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_competitor(_first_name text, _last_name text, _pesel text, _is_individual boolean, _team_id integer, _phone_number text, _birth_date date, _nationality text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) TO external_user;
+
+
+--
+-- Name: FUNCTION add_participant(_tournament_id integer, _competitor_id integer, _competitor_status text); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_participant(_tournament_id integer, _competitor_id integer, _competitor_status text) TO organizer;
+
+
+--
+-- Name: FUNCTION add_solo_result(_tournament_id integer, _competitor_id integer, _solo_result numeric); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_solo_result(_tournament_id integer, _competitor_id integer, _solo_result numeric) TO referee;
+
+
+--
+-- Name: FUNCTION add_team(_name text, _trainer_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_team(_name text, _trainer_id integer) TO organizer;
+
+
+--
+-- Name: FUNCTION add_team_result(_tournament_id integer, _team_id integer, _team_result numeric); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_team_result(_tournament_id integer, _team_id integer, _team_result numeric) TO referee;
+
+
+--
+-- Name: FUNCTION add_tournament(_tournament_type_name text, _name text, _location_name text, _extra_location_info text, _start_datetime timestamp with time zone, _end_datetime timestamp with time zone, _organizer_name text); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_tournament(_tournament_type_name text, _name text, _location_name text, _extra_location_info text, _start_datetime timestamp with time zone, _end_datetime timestamp with time zone, _organizer_name text) TO organizer;
+
+
+--
+-- Name: FUNCTION add_trainer(_first_name text, _last_name text, _pesel text, _phone_number text, _area_code text, _email text, _city text, _house_number integer, _zip_code text); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.add_trainer(_first_name text, _last_name text, _pesel text, _phone_number text, _area_code text, _email text, _city text, _house_number integer, _zip_code text) TO external_user;
+
+
+--
+-- Name: FUNCTION delete_competitor(_competitor_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_competitor(_competitor_id integer) TO organizer;
+
+
+--
+-- Name: FUNCTION delete_participation(_participation_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_participation(_participation_id integer) TO organizer;
+
+
+--
+-- Name: FUNCTION delete_solo_result(_result_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_solo_result(_result_id integer) TO referee;
+
+
+--
+-- Name: FUNCTION delete_team_result(_result_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_team_result(_result_id integer) TO referee;
+
+
+--
+-- Name: FUNCTION delete_tournament(_tournament_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_tournament(_tournament_id integer) TO organizer;
+
+
+--
+-- Name: FUNCTION delete_trainer(_trainer_id integer); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.delete_trainer(_trainer_id integer) TO organizer;
+
+
+--
+-- Name: TABLE address_data; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.address_data TO organizer;
+
+
+--
+-- Name: TABLE competitors; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.competitors TO organizer;
+
+
+--
+-- Name: TABLE contact_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.contact_details TO organizer;
+
+
+--
+-- Name: TABLE participation; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.participation TO organizer;
+
+
+--
+-- Name: TABLE personal_data; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.personal_data TO organizer;
+
+
+--
+-- Name: TABLE teams; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.teams TO organizer;
+
+
+--
+-- Name: TABLE tournaments; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT INSERT,UPDATE ON TABLE public.tournaments TO organizer;
+
+
+--
+-- Name: TABLE public_competitors_info; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.public_competitors_info TO external_user;
+GRANT SELECT ON TABLE public.public_competitors_info TO organizer;
+GRANT SELECT ON TABLE public.public_competitors_info TO referee;
+
+
+--
+-- Name: TABLE trainers; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT UPDATE ON TABLE public.trainers TO organizer;
+
+
+--
+-- Name: TABLE public_teams_info; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.public_teams_info TO external_user;
+GRANT SELECT ON TABLE public.public_teams_info TO organizer;
+GRANT SELECT ON TABLE public.public_teams_info TO referee;
+
+
+--
+-- Name: TABLE public_tournament_info; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.public_tournament_info TO external_user;
+GRANT SELECT ON TABLE public.public_tournament_info TO organizer;
+GRANT SELECT ON TABLE public.public_tournament_info TO referee;
+
+
+--
+-- Name: TABLE solo_results; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.solo_results TO external_user;
+GRANT SELECT ON TABLE public.solo_results TO organizer;
+GRANT SELECT,UPDATE ON TABLE public.solo_results TO referee;
+
+
+--
+-- Name: TABLE team_results; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.team_results TO external_user;
+GRANT SELECT ON TABLE public.team_results TO organizer;
+GRANT SELECT,UPDATE ON TABLE public.team_results TO referee;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
