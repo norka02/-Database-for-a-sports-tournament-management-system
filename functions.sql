@@ -87,23 +87,22 @@ CREATE OR REPLACE FUNCTION add_competitor(
         _address_data_id INT;
         _contact_details_id INT;
         _personal_data_id INT;
-        _team_id INT;
     BEGIN
     -- check if team exists or this value is null
-        SELECT t.team_id from teams t WHERE t.name = _team_id;
-        IF FOUND THEN
-            RAISE EXCEPTION 'Team with tha ID does not exist';
+        perform t.team_id from teams t WHERE t.team_id = _team_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Team with that ID does not exist %', FOUND;
         end if;
 
 
     -- check if current user exists in DB
-        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+        perform pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
             pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
         IF FOUND THEN
             RAISE EXCEPTION 'User with this PESEL number already exists.';
         end if;
 
-        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+        perform cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
             cd.email = _email LIMIT 1 FOR UPDATE;
          IF FOUND THEN
             RAISE EXCEPTION 'User with this email or phone number already exists.';
@@ -203,13 +202,13 @@ CREATE OR REPLACE FUNCTION add_trainer(
         _personal_data_id INT;
     BEGIN
     -- check if current trainer exists in DB
-        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+        perform pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
             pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
         IF FOUND THEN
             RAISE EXCEPTION 'User with this PESEL number already exists.';
         end if;
 
-        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+        perform cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
             cd.email = _email LIMIT 1 FOR UPDATE;
          IF FOUND THEN
             RAISE EXCEPTION 'User with this email or phone number already exists.';

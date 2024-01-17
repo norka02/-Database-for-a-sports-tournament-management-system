@@ -771,4 +771,111 @@ BEGIN
   end;
   if should_rollback then rollback; end if;
 
+  Begin
+  perform add_competitor('1','1','11111111111',True,1,'111111111','2004-10-19','1','111','1','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',1);
+  insert into trainers (contact_details_id, address_data_id, personal_data_id, trainer_id) values (1,1,1,1);
+  insert into teams (name, trainer_id, team_id) values ('1',1,1);
+  perform add_competitor('1','1','11111111111',True,1,'11111112','2004-10-19','1','111','2','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',1);
+  insert into trainers (contact_details_id, address_data_id, personal_data_id, trainer_id) values (1,1,1,1);
+  insert into teams (name, trainer_id, team_id) values ('1',1,1);
+  perform add_competitor('1','1','11111111112',True,1,'111111111','2004-10-19','1','111','2','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',1);
+  insert into trainers (contact_details_id, address_data_id, personal_data_id, trainer_id) values (1,1,1,1);
+  insert into teams (name, trainer_id, team_id) values ('1',1,1);
+  perform add_competitor('1','1','11111111112',True,1,'111111112','2004-10-19','1','111','11111111111','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',1);
+  insert into trainers (contact_details_id, address_data_id, personal_data_id, trainer_id) values (1,1,1,1);
+  insert into teams (name, trainer_id, team_id) values ('1',1,1);
+  perform add_competitor('1','1','11111111112',True,1,'111111112','2004-10-19','1','111','11111111112','2',2,'2');
+  perform c.competitor_id from competitors c where c.is_individual_player = True and c.birth_date = '2004-10-19' and c.nationality = '1' and team_id = 1;
+  if not found then
+  raise notice 'Test #2 fail';
+  else
+  raise notice 'Test #2 success';
+  end if;
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',1);
+  perform add_trainer('1','1','11111111111','111111111','111','1','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  perform add_trainer('1','1','11111111111','111111111','111','1','1',1,'1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  DECLARE
+        _address_data_id INT;
+        _contact_details_id INT;
+        _personal_data_id INT;
+  Begin
+  perform add_trainer('1','1','11111111111','111111111','111','1','1',1,'1');
+  SELECT ad.address_data_id INTO _address_data_id FROM address_data ad WHERE ad.city = '1'
+                                                                               AND ad.house_number = 1
+                                                                               AND ad.zip_code = '1';
+  SELECT pd.personal_data_id INTO _personal_data_id FROM personal_data pd WHERE
+            pd.pesel_number = '11111111111';
+  SELECT cd.contact_details_id INTO _contact_details_id FROM contact_details cd WHERE cd.email = '1'
+                                                                                    AND cd.phone_number = '111111111';
+  perform t.trainer_id from trainers t where t.contact_details_id = _contact_details_id and t.address_data_id = _address_data_id and t.personal_data_id = _personal_data_id;
+  if not found then
+  raise notice 'Test #2 fail';
+  else
+  raise notice 'Test #2 success';
+  end if;
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
 END$$;
