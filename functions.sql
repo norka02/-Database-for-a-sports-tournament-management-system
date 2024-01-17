@@ -21,7 +21,7 @@ CREATE OR REPLACE FUNCTION add_tournament(
         EXECUTE 'LOCK TABLE participation IN SHARE ROW EXCLUSIVE MODE';
         EXECUTE 'LOCK TABLE solo_results IN SHARE ROW EXCLUSIVE MODE';
         EXECUTE ' LOCK TABLE team_results IN SHARE ROW EXCLUSIVE MODE';
-        RAISE NOTICE 'TABLES WAS LOCKED PROPERLY. ADDING NEW DATA TO TABLE IS SAFE NOW';
+        RAISE NOTICE 'TABLES WERE LOCKED PROPERLY. ADDING NEW DATA TO TABLE IS SAFE NOW';
 
     -- check if tournament type exists
         SELECT tt.type_id INTO _tournament_type_id FROM tournament_types tt WHERE UPPER(tt.name) = UPPER(_tournament_type_name) LIMIT 1;

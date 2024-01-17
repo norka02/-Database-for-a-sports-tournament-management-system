@@ -748,4 +748,27 @@ BEGIN
   end;
   if should_rollback then rollback; end if;
 
+  raise notice 'Test functions';
+
+  Begin
+  perform add_tournament('1','1','1','1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02','1');
+  raise notice 'Test #2 fail';
+  should_rollback := true;
+  exception when raise_exception then RAISE notice 'Test #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('111111111','111','11111111111',1);
+  insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
+  insert into roles (name, rights, role_id) values ('1','1',1);
+  insert into users (name, role_id, contact_details_id, address_data_id, user_id) values ('1',1,1,1,1);
+  insert into organizers (name, user_id, organizer_id) values ('1',1,1);
+  perform add_tournament('1','1','1','1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02','1');
+  raise notice 'Test #2 success';
+  should_rollback := true;
+  exception when others then RAISE notice 'Test #2 fail';
+  end;
+  if should_rollback then rollback; end if;
+
 END$$;
