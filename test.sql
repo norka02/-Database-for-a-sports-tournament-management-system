@@ -317,7 +317,7 @@ BEGIN
   insert into address_data (city, house_number, zip_code, address_data_id) values ('1',1,'1',1);
   raise notice 'Test address_data_id fail';
   should_rollback := true;
-  exception when unique_violation then RAISE notice 'Test #1 success';
+  exception when unique_violation then RAISE notice 'Test address_data_id success';
   end;
   if should_rollback then rollback; end if;
 
@@ -328,7 +328,7 @@ BEGIN
   insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111112',1);
   raise notice 'Test personal_data_id fail';
   should_rollback := true;
-  exception when unique_violation then RAISE notice 'Test #2 success';
+  exception when unique_violation then RAISE notice 'Test personal_data_id success';
   end;
   if should_rollback then rollback; end if;
 
@@ -337,7 +337,7 @@ BEGIN
   insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1','1','11111111111',2);
   raise notice 'Test pesel_number fail';
   should_rollback := true;
-  exception when unique_violation then RAISE notice 'Test #3 success';
+  exception when unique_violation then RAISE notice 'Test pesel_number success';
   end;
   if should_rollback then rollback; end if;
 
