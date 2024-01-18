@@ -1793,7 +1793,234 @@ BEGIN
 
   RAISE NOTICE '---------';
 
-  RAISE NOTICE 'Test restricts/cascades on key updates';
+  RAISE NOTICE 'Test cascades on key updates';
+
+
+  declare temp_key int;
+  Begin 
+  --init
+  insert into address_data (city, address_data_id) values ('1', 1);
+  insert into personal_data (first_name, last_name, personal_data_id) values ('1', '1', 1);
+  insert into contact_details (phone_number, email, contact_details_id) values ('123456789', '1', 1);
+  insert into roles (role_id) values (1);
+  insert into trainers (contact_details_id, address_data_id, personal_data_id, trainer_id) values (1,1,1,1);
+  insert into users (name, role_id, contact_details_id, address_data_id, personal_data_id, user_id) values ('1',1,1,1,1,1);
+  insert into payment_statuses (status, status_id) values ('1', 1);
+  insert into locations (location, location_id) values ('1', 1);
+  insert into organizers (name, user_id, organizer_id) values ('1',1, 1);
+  insert into teams (name, trainer_id, team_id) values ('1',1, 1);
+  insert into system_logs (user_id, log_id) values ('1', 1);
+  insert into payments (amount, user_id, status_id, payment_id) values (1, 1,1,1);
+  insert into tournament_types (name, type_id) values ('1', 1);
+  insert into tournaments (tournament_type_id, name, location_id, start_datetime, end_datetime, organizer_id, tournament_id) values (1, '1',1,'2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1,1);
+  insert into competitors (is_individual_player, birth_date, nationality, team_id, contact_details_id, address_data_id, personal_data_id, competitor_id) values (True, '2004-10-19', '1', 1,1,1,1,1);
+  insert into competitor_statuses (status, status_id) values ('1', 1);
+  insert into team_results (tournament_id, team_id, result_id) values (1,1, 1);
+  insert into solo_results (tournament_id, competitor_id, result_id) values (1,1, 1);
+  insert into participation (tournament_id, competitor_id, competitor_status_id, participation_id) values (1,1,1,1);
+  -- update primary keys
+  update roles set role_id = 2 where role_id = 1;
+  update personal_data set personal_data_id = 2 where personal_data_id = 1;
+  update address_data set address_data_id = 2 where address_data_id = 1;
+  update contact_details set contact_details_id = 2 where contact_details_id = 1;
+  update trainers set trainer_id = 2 where trainer_id = 1;
+  update users set user_id = 2 where user_id = 1;
+  update payment_statuses set status_id = 2 where status_id = 1;
+  update locations set location_id = 2 where location_id = 1;
+  update organizers set organizer_id = 2 where organizer_id = 1;
+  update teams set team_id = 2 where team_id = 1;
+  update system_logs set log_id = 2 where log_id = 1;
+  update payments set payment_id = 2 where payment_id = 1;
+  update tournament_types set type_id = 2 where type_id = 1;
+  update tournaments set tournament_id = 2 where tournament_id = 1;
+  update competitors set competitor_id = 2 where competitor_id = 1;
+  update competitor_statuses set status_id = 2 where status_id = 1;
+  update team_results set result_id = 2 where result_id = 1;
+  update solo_results set result_id = 2 where result_id = 1;
+  update participation set participation_id = 2 where participation_id = 1;
+  -- verify the foreign keys changes
+  raise notice '- Test trainers';
+  SELECT contact_details_id from trainers into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test trainers - contact_details_id fail';
+  else
+  raise notice 'Test trainers - contact_details_id success';
+  end if;
+  SELECT address_data_id from trainers into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test trainers - address_data_id fail';
+  else
+  raise notice 'Test trainers - address_data_id success';
+  end if;
+  SELECT personal_data_id from trainers into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test trainers - personal_data_id fail';
+  else
+  raise notice 'Test trainers - personal_data_id success';
+  end if;
+
+  raise notice '- Test users';
+  SELECT role_id from users into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test users - role_id fail';
+  else
+  raise notice 'Test users - role_id success';
+  end if;
+  SELECT contact_details_id from users into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test users - contact_details_id fail';
+  else
+  raise notice 'Test users - contact_details_id success';
+  end if;
+  SELECT address_data_id from users into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test users - address_data_id fail';
+  else
+  raise notice 'Test users - address_data_id success';
+  end if;
+  SELECT personal_data_id from users into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test users - personal_data_id fail';
+  else
+  raise notice 'Test users - personal_data_id success';
+  end if;
+
+  raise notice '- Test organizers';
+  SELECT user_id from organizers into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test organizers - user_id fail';
+  else
+  raise notice 'Test organizers - user_id success';
+  end if;
+
+  raise notice '- Test teams';
+  SELECT trainer_id from teams into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test teams - trainer_id fail';
+  else
+  raise notice 'Test teams - trainer_id success';
+  end if;
+
+  raise notice '- Test system_logs';
+  SELECT user_id from system_logs into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test system_logs - user_id fail';
+  else
+  raise notice 'Test system_logs - user_id success';
+  end if;
+
+  raise notice '- Test payments';
+  SELECT user_id from payments into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test payments - user_id fail';
+  else
+  raise notice 'Test payments - user_id success';
+  end if;
+  SELECT status_id from payments into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test payments - status_id fail';
+  else
+  raise notice 'Test payments - status_id success';
+  end if;
+
+  raise notice '- Test tournaments';
+  SELECT tournament_type_id from tournaments into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test tournaments - tournament_type_id fail';
+  else
+  raise notice 'Test tournaments - tournament_type_id success';
+  end if;
+  SELECT location_id from tournaments into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test tournaments - location_id fail';
+  else
+  raise notice 'Test tournaments - location_id success';
+  end if;
+  SELECT organizer_id from tournaments into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test tournaments - organizer_id fail';
+  else
+  raise notice 'Test tournaments - organizer_id success';
+  end if;
+
+  raise notice '- Test competitors';
+  SELECT team_id from competitors into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test competitors - team_id fail';
+  else
+  raise notice 'Test competitors - team_id success';
+  end if;
+  SELECT contact_details_id from competitors into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test competitors - contact_details_id fail';
+  else
+  raise notice 'Test competitors - contact_details_id success';
+  end if;
+  SELECT address_data_id from competitors into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test competitors - address_data_id fail';
+  else
+  raise notice 'Test competitors - address_data_id success';
+  end if;
+  SELECT personal_data_id from competitors into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test competitors - personal_data_id fail';
+  else
+  raise notice 'Test competitors - personal_data_id success';
+  end if;
+
+  raise notice '- Test team_results';
+  SELECT tournament_id from team_results into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test team_results - tournament_id fail';
+  else
+  raise notice 'Test team_results - tournament_id success';
+  end if;
+  SELECT team_id from team_results into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test team_results - team_id fail';
+  else
+  raise notice 'Test team_results - team_id success';
+  end if;
+
+  raise notice '- Test solo_results';
+  SELECT tournament_id from solo_results into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test solo_results - tournament_id fail';
+  else
+  raise notice 'Test solo_results - tournament_id success';
+  end if;
+  SELECT competitor_id from solo_results into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test solo_results - competitor_id fail';
+  else
+  raise notice 'Test solo_results - competitor_id success';
+  end if;
+
+  raise notice '- Test participation';
+  SELECT tournament_id from participation into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test participation - tournament_id fail';
+  else
+  raise notice 'Test participation - tournament_id success';
+  end if;
+  SELECT competitor_id from participation into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test participation - competitor_id fail';
+  else
+  raise notice 'Test participation - competitor_id success';
+  end if;
+  SELECT competitor_status_id from participation into temp_key;
+  if temp_key = 1 then 
+  raise notice 'Test participation - competitor_status_id fail';
+  else
+  raise notice 'Test participation - competitor_status_id success';
+  end if;
+
+  should_rollback := true;
+  --exception when others then RAISE notice 'Testing error';
+  end;
+  if should_rollback then rollback; end if;
 
   RAISE NOTICE '---------';
 
