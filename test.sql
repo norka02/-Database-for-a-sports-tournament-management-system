@@ -1707,4 +1707,96 @@ BEGIN
   end;
   if should_rollback then rollback; end if;
 
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test that default (non-key) values are created';
+
+  raise notice '- Test contact_details';
+
+  declare temp text;
+  begin
+  insert into contact_details (phone_number, email, contact_details_id) values ('123456789','1', 1);
+  SELECT area_code from contact_details where contact_details_id=1 into temp;
+  if temp is not null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test roles';
+
+  declare temp text;
+  begin
+  insert into roles (role_id) values (1);
+  SELECT name from roles where role_id=1 into temp;
+  if temp is not null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test locations';
+
+  declare temp text;
+  begin
+  insert into locations (location_id, location) values (1,'1');
+  SELECT extra_info from locations where location_id=1 into temp;
+  if temp is not null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test payments';
+
+  declare temp text;
+  begin
+  insert into payments (amount, payment_id) values (1,1);
+  SELECT payment_date from payments where payment_id=1 into temp;
+  if temp is not null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test tournament_types';
+
+  declare temp text;
+  begin
+  insert into tournament_types (type_id) values (1);
+  SELECT name from tournament_types where type_id=1 into temp;
+  if temp is not null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test restricts/cascades on key updates';
+
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test restricts/cascades on key deletes';
+
 END$$;
