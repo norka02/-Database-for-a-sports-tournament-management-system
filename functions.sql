@@ -21,7 +21,7 @@ CREATE OR REPLACE FUNCTION add_tournament(
         EXECUTE 'LOCK TABLE participation IN SHARE ROW EXCLUSIVE MODE';
         EXECUTE 'LOCK TABLE solo_results IN SHARE ROW EXCLUSIVE MODE';
         EXECUTE ' LOCK TABLE team_results IN SHARE ROW EXCLUSIVE MODE';
-        RAISE NOTICE 'TABLES WAS LOCKED PROPERLY. ADDING NEW DATA TO TABLE IS SAFE NOW';
+        RAISE NOTICE 'TABLES WERE LOCKED PROPERLY. ADDING NEW DATA TO TABLE IS SAFE NOW';
 
     -- check if tournament type exists
         SELECT tt.type_id INTO _tournament_type_id FROM tournament_types tt WHERE UPPER(tt.name) = UPPER(_tournament_type_name) LIMIT 1;
@@ -87,23 +87,22 @@ CREATE OR REPLACE FUNCTION add_competitor(
         _address_data_id INT;
         _contact_details_id INT;
         _personal_data_id INT;
-        _team_id INT;
     BEGIN
     -- check if team exists or this value is null
-        SELECT t.team_id from teams t WHERE t.name = _team_id;
-        IF FOUND THEN
-            RAISE EXCEPTION 'Team with tha ID does not exist';
+        perform t.team_id from teams t WHERE t.team_id = _team_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Team with that ID does not exist %', FOUND;
         end if;
 
 
     -- check if current user exists in DB
-        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+        perform pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
             pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
         IF FOUND THEN
             RAISE EXCEPTION 'User with this PESEL number already exists.';
         end if;
 
-        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+        perform cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
             cd.email = _email LIMIT 1 FOR UPDATE;
          IF FOUND THEN
             RAISE EXCEPTION 'User with this email or phone number already exists.';
@@ -203,13 +202,13 @@ CREATE OR REPLACE FUNCTION add_trainer(
         _personal_data_id INT;
     BEGIN
     -- check if current trainer exists in DB
-        SELECT pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
+        perform pd.personal_data_id _personal_data_id FROM personal_data pd WHERE
             pd.pesel_number = _pesel FOR UPDATE LIMIT 1;
         IF FOUND THEN
             RAISE EXCEPTION 'User with this PESEL number already exists.';
         end if;
 
-        SELECT cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
+        perform cd.phone_number, cd.email FROM contact_details cd WHERE cd.phone_number = _phone_number OR
             cd.email = _email LIMIT 1 FOR UPDATE;
          IF FOUND THEN
             RAISE EXCEPTION 'User with this email or phone number already exists.';
@@ -287,7 +286,7 @@ CREATE OR REPLACE FUNCTION add_team(
     ) RETURNS void AS $$
     BEGIN
     -- check if trainer exists
-        SELECT trainers.trainer_id FROM trainers WHERE _trainer_id = trainers.trainer_id;
+        perform trainers.trainer_id FROM trainers WHERE _trainer_id = trainers.trainer_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Trainer with that ID does not exist';
         end if;
@@ -313,13 +312,13 @@ CREATE OR REPLACE FUNCTION add_solo_result(
     ) RETURNS void AS $$
     BEGIN
     -- check if tournament id exists
-        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        perform tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Tournament with that ID does not exist';
         end if;
 
     -- check if competitor id exists
-        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        perform competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Competitor with that ID does not exist';
         end if;
@@ -335,7 +334,7 @@ CREATE OR REPLACE FUNCTION add_solo_result(
                   _solo_result
                          );
 
-        RAISE NOTICE 'Solo resul has been added successfully';
+        RAISE NOTICE 'Solo result has been added successfully';
     end;
     $$ LANGUAGE plpgsql;
 
@@ -348,13 +347,13 @@ CREATE OR REPLACE FUNCTION add_team_result(
     ) RETURNS void AS $$
     BEGIN
     -- check if tournament id exists
-        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        perform tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Tournament with that ID does not exist';
         end if;
 
     -- check if team id exists
-        SELECT team_id FROM teams WHERE team_id= _team_id;
+        perform team_id FROM teams WHERE team_id= _team_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Team with that ID does not exist';
         end if;
@@ -370,7 +369,7 @@ CREATE OR REPLACE FUNCTION add_team_result(
                   _team_result
                          );
 
-        RAISE NOTICE 'Team resul has been added successfully';
+        RAISE NOTICE 'Team result has been added successfully';
     end;
     $$ LANGUAGE plpgsql;
 
@@ -424,7 +423,7 @@ CREATE OR REPLACE FUNCTION delete_competitor(
     _competitor_id int
 ) RETURNS void AS $$
     BEGIN
-        SELECT competitors.competitor_id FROM competitors WHERE competitor_id = _competitor_id;
+        perform competitors.competitor_id FROM competitors WHERE competitor_id = _competitor_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Competitor with that ID does not exist';
         end if;
@@ -437,7 +436,7 @@ CREATE OR REPLACE FUNCTION delete_tournament(
     _tournament_id int
 ) RETURNS void AS $$
     BEGIN
-        SELECT tournaments.tournament_id FROM tournaments WHERE tournament_id = _tournament_id;
+        perform tournaments.tournament_id FROM tournaments WHERE tournament_id = _tournament_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'tournament with that ID does not exist';
         end if;
@@ -450,7 +449,7 @@ CREATE OR REPLACE FUNCTION delete_solo_result(
     _result_id int
 ) RETURNS void AS $$
     BEGIN
-        SELECT result_id FROM solo_results WHERE result_id = _result_id;
+        perform result_id FROM solo_results WHERE result_id = _result_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'result with that ID does not exist';
         end if;
@@ -463,7 +462,7 @@ CREATE OR REPLACE FUNCTION delete_team_result(
     _result_id int
 ) RETURNS void AS $$
     BEGIN
-        SELECT result_id FROM team_results WHERE result_id = _result_id;
+        perform result_id FROM team_results WHERE result_id = _result_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'result with that ID does not exist';
         end if;
@@ -477,7 +476,7 @@ CREATE OR REPLACE FUNCTION delete_participation(
     _participation_id INT
 ) RETURNS void AS $$
     BEGIN
-        SELECT participation_id FROM participation WHERE participation_id = _participation_id;
+        perform participation_id FROM participation WHERE participation_id = _participation_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'participation with that ID does not exist';
         end if;
@@ -489,7 +488,7 @@ CREATE OR REPLACE FUNCTION delete_trainer(
     _trainer_id INT
 ) RETURNS void AS $$
     BEGIN
-        SELECT trainer_id FROM trainers WHERE trainer_id = _trainer_id;
+        perform trainer_id FROM trainers WHERE trainer_id = _trainer_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'trainer with that ID does not exist';
         end if;
