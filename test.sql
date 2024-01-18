@@ -2026,4 +2026,340 @@ BEGIN
 
   RAISE NOTICE 'Test restricts/cascades on key deletes';
 
+  RAISE notice '- Test trainers - contact_details_id';
+
+  begin
+  insert into contact_details (phone_number, email, contact_details_id) values ('123456789', '111', 1);
+  insert into trainers (contact_details_id) values (1);
+  delete from contact_details where contact_details_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test trainers - address_data_id';
+
+  begin
+  insert into address_data (city, address_data_id) values ('111', 1);
+  insert into trainers (address_data_id) values (1);
+  delete from address_data where address_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test trainers - personal_data_id';
+
+  begin
+  insert into personal_data (first_name, last_name, personal_data_id) values ('1','1', 1);
+  insert into trainers (personal_data_id) values (1);
+  delete from personal_data where personal_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test users - role_id';
+
+  declare temp_key int;
+  begin
+  insert into roles (name, role_id) values ('1', 1);
+  insert into users (name, role_id) values ('1',1);
+  delete from roles where role_id = 1;
+  select role_id from users where name = '1' into temp_key;
+  if temp_key is null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test users - contact_details_id';
+
+  begin
+  insert into contact_details (phone_number, email, contact_details_id) values ('123456789', '111', 1);
+  insert into users (name, contact_details_id) values ('1',1);
+  delete from contact_details where contact_details_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test users - address_data_id';
+
+  begin
+  insert into address_data (city, address_data_id) values ('111', 1);
+  insert into users (name, address_data_id) values ('1',1);
+  delete from address_data where address_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test users - personal_data_id';
+
+  begin
+  insert into personal_data (first_name, last_name, personal_data_id) values ('1','1', 1);
+  insert into users (name, personal_data_id) values ('1',1);
+  delete from personal_data where personal_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test organizers - user_id';
+
+  begin
+  insert into users (name, user_id) values ('1',1);
+  insert into organizers (name, user_id) values ('1',1);
+  delete from users where user_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test teams - trainer_id';
+
+  begin
+  insert into trainers (trainer_id) values (1);
+  insert into teams (name, trainer_id) values ('1',1);
+  delete from trainers where trainer_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test system_logs - user_id';
+
+  declare temp_key int;
+  begin
+  insert into users (name, user_id) values ('1',1);
+  insert into system_logs (user_id, log_id) values (1,1);
+  delete from users where user_id = 1;
+  select user_id from system_logs where log_id = '1' into temp_key;
+  if temp_key is null then
+  raise notice 'Test success';
+  else
+  raise notice 'Test fail';
+  end if;
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test payments - user_id';
+
+  begin
+  insert into users (name, user_id) values ('1',1);
+  insert into payments (user_id, amount) values (1,1);
+  delete from users where user_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test payments - status_id';
+
+  begin
+  insert into payment_statuses (status, status_id) values ('1',1);
+  insert into payments (status_id, amount) values (1,1);
+  delete from payment_statuses where status_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test tournaments - tournament_type_id';
+
+  begin
+  insert into tournament_types (name, type_id) values ('1',1);
+  insert into tournaments (name, start_datetime, end_datetime, tournament_type_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  delete from tournament_types where type_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test tournaments - location_id';
+
+  begin
+  insert into locations (location, location_id) values ('1',1);
+  insert into tournaments (name, start_datetime, end_datetime, location_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  delete from locations where location_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test tournaments - organizer_id';
+
+  begin
+  insert into organizers (name, organizer_id) values ('1',1);
+  insert into tournaments (name, start_datetime, end_datetime, organizer_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  delete from organizers where organizer_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test competitors - team_id';
+
+  begin
+  insert into teams (name, team_id) values ('1',1);
+  insert into competitors (is_individual_player, birth_date, nationality, team_id, competitor_id) values (True,'2004-10-19','1',1,1);
+  delete from teams where team_id = 1;
+  perform team_id from competitors where competitor_id =1;
+  if found then
+  raise notice 'Test fail';
+  else
+  raise notice 'Test success';
+  end if;
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test competitors - contact_details_id';
+
+  begin
+  insert into contact_details (phone_number, email, contact_details_id) values ('123456789', '111', 1);
+  insert into competitors (is_individual_player, birth_date, nationality, contact_details_id) values (True,'2004-10-19','1',1);
+  delete from contact_details where contact_details_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test competitors - address_data_id';
+
+  begin
+  insert into address_data (city, address_data_id) values ('111', 1);
+  insert into competitors (is_individual_player, birth_date, nationality, address_data_id) values (True,'2004-10-19','1',1);
+  delete from address_data where address_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test competitors - personal_data_id';
+
+  begin
+  insert into personal_data (first_name, last_name, personal_data_id) values ('1','1', 1);
+  insert into competitors (is_individual_player, birth_date, nationality, personal_data_id) values (True,'2004-10-19','1',1);
+  delete from personal_data where personal_data_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test team_results - tournament_id';
+
+  begin
+  insert into tournaments (name, start_datetime, end_datetime, tournament_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  insert into team_results (tournament_id, point_score) values (1,1);
+  delete from tournaments where tournament_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test team_results - team_id';
+
+  begin
+  insert into teams (name, team_id) values ('1',1);
+  insert into team_results (team_id, point_score) values (1,1);
+  delete from teams where team_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test solo_results - tournament_id';
+
+  begin
+  insert into tournaments (name, start_datetime, end_datetime, tournament_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  insert into solo_results (tournament_id, point_score) values (1,1);
+  delete from tournaments where tournament_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test solo_results - competitor_id';
+
+  begin
+  insert into payment_statuses (status, status_id) values ('1',1);
+  insert into competitors (is_individual_player, birth_date, nationality, competitor_id) values (True,'2004-10-19','1',1);
+  insert into solo_results (competitor_id, point_score) values (1,1);
+  delete from competitors where competitor_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test participation - tournament_id';
+
+  begin
+  insert into payment_statuses (status, status_id) values ('1',1);
+  insert into tournaments (name, start_datetime, end_datetime, tournament_id) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02',1);
+  insert into participation (tournament_id) values (1);
+  delete from tournaments where tournament_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test participation - competitor_id';
+
+  begin
+  insert into payment_statuses (status, status_id) values ('1',1);
+  insert into competitors (is_individual_player, birth_date, nationality, competitor_id) values (True,'2004-10-19','1',1);
+  insert into participation (competitor_id) values (1);
+  delete from competitors where competitor_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE notice '- Test participation - competitor_status_id';
+
+  begin
+  insert into payment_statuses (status, status_id) values ('1',1);
+  insert into competitor_statuses (status, status_id) values ('1',1);
+  insert into participation (competitor_status_id) values (1);
+  delete from competitor_statuses where status_id = 1;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when integrity_constraint_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+
+
+
 END$$;
