@@ -1388,6 +1388,199 @@ BEGIN
   end;
   if should_rollback then rollback; end if;
 
-  
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test minimum non-null entry creation';
+
+  raise notice '- Test address_data';
+
+  begin
+  insert into address_data (city) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test personal_data';
+
+  begin
+  insert into personal_data (first_name, last_name) values ('1','1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test contact_details';
+
+  begin
+  insert into contact_details (phone_number, email) values ('123456789','1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test roles';
+
+  begin
+  insert into roles (rights) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test trainers';
+
+  begin
+  insert into trainers default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test users';
+
+  begin
+  insert into users (name) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test payment_statuses';
+
+  begin
+  insert into payment_statuses (status) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test locations';
+
+  begin
+  insert into locations (location) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test organizers';
+
+  begin
+  insert into organizers (name) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test teams';
+
+  begin
+  insert into teams (name) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test system_logs';
+
+  begin
+  insert into system_logs default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test payments';
+
+  begin
+  insert into payments (amount) values (11);
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test tournament_types';
+
+  begin
+  insert into tournament_types default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test tournaments';
+
+  begin
+  insert into tournaments (name, start_datetime, end_datetime) values ('1','2004-10-19 10:23:54+02','2004-10-19 10:23:54+02');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test competitors';
+
+  begin
+  insert into competitors (is_individual_player, birth_date, nationality) values (True,'2004-10-19','111');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test competitor_statuses';
+
+  begin
+  insert into competitor_statuses (status) values ('1');
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test team_results';
+
+  begin
+  insert into team_results default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test solo_results';
+
+  begin
+  insert into solo_results default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test participation';
+
+  begin
+  insert into payment_statuses (status,status_id) values ('1',1); -- necessary for trigger
+  insert into participation default values;
+  raise notice 'Test success';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
 
 END$$;
