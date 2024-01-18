@@ -1425,7 +1425,7 @@ BEGIN
   raise notice '- Test roles';
 
   begin
-  insert into roles (rights) values ('1');
+  insert into roles default values;
   raise notice 'Test success';
   should_rollback := true;
   exception when not_null_violation then raise notice 'Test fail';
@@ -1580,6 +1580,130 @@ BEGIN
   raise notice 'Test success';
   should_rollback := true;
   exception when not_null_violation then raise notice 'Test fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test null entry creation prevention (where applicabble)';
+
+  raise notice '- Test address_data';
+
+  begin
+  insert into address_data default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test personal_data';
+
+  begin
+  insert into personal_data default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test contact_details';
+
+  begin
+  insert into contact_details default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test users';
+
+  begin
+  insert into users default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test payment_statuses';
+
+  begin
+  insert into payment_statuses default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test locations';
+
+  begin
+  insert into locations default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test organizers';
+
+  begin
+  insert into organizers default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test teams';
+
+  begin
+  insert into teams default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test payments';
+
+  begin
+  insert into payments default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test tournaments';
+
+  begin
+  insert into tournaments default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test competitors';
+
+  begin
+  insert into competitors default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
+  end;
+  if should_rollback then rollback; end if;
+
+  raise notice '- Test competitor_statuses';
+
+  begin
+  insert into competitor_statuses default values;
+  raise notice 'Test fail';
+  should_rollback := true;
+  exception when not_null_violation then raise notice 'Test success';
   end;
   if should_rollback then rollback; end if;
 
