@@ -1306,4 +1306,88 @@ BEGIN
   end;
   if should_rollback then rollback; end if;
 
+  RAISE NOTICE '---------';
+
+  RAISE NOTICE 'Test check constraints';
+
+  RAISE NOTICE '- Test personal_data pesel_number';
+
+  Begin
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1', '1', '1234567890', 1);
+  raise notice 'Test check #1 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #1 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1', '1', '123456789012', 1);
+  raise notice 'Test check #2 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into personal_data (first_name, last_name, pesel_number, personal_data_id) values ('1', '1', '12345678901', 1);
+  raise notice 'Test proper usage success';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test proper usage fail';
+  end;
+  if should_rollback then rollback; end if;
+  
+  RAISE NOTICE '- Test contact_details area_code';
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('123456789', '12', '111', 1);
+  raise notice 'Test check #1 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #1 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('123456789', '1234', '111', 1);
+  raise notice 'Test check #2 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('123456789', '123', '111', 1);
+  raise notice 'Test proper usage success';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test proper usage fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  RAISE NOTICE '- Test contact_details phone_number';
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('12345678', '123', '111', 1);
+  raise notice 'Test check #1 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #1 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('1234567890', '123', '111', 1);
+  raise notice 'Test check #2 fail';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test check #2 success';
+  end;
+  if should_rollback then rollback; end if;
+
+  Begin
+  insert into contact_details (phone_number, area_code, email, contact_details_id) values ('123456789', '123', '111', 1);
+  raise notice 'Test proper usage success';
+  should_rollback := true;
+  exception when check_violation then RAISE notice 'Test proper usage fail';
+  end;
+  if should_rollback then rollback; end if;
+
+  
+
 END$$;
