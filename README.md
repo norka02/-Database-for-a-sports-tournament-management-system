@@ -50,6 +50,7 @@ Conflicts may arise during simultaneous access, especially by organizers. Exampl
 - Inconsistencies in payment status or duplicate registrations for the same tournament.
 
 To address these conflicts, the system should implement transaction management and conflict resolution mechanisms.
+[UPDATE] This conflicts was resloved.
 
 ## Installation and Setup
 To install DB install PostgreSQL DBMS and use this commands in bash:
