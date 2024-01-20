@@ -394,15 +394,22 @@ CREATE OR REPLACE FUNCTION add_participant(
         end if;
 
     -- check if tournament id exists
-        SELECT tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
+        perform tournaments.tournament_id FROM tournaments WHERE tournaments.tournament_id = _tournament_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Tournament with that ID does not exist';
         end if;
 
     -- check if competitor id exists
-        SELECT competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
+        perform competitors.competitor_id FROM competitors WHERE competitors.competitor_id = _competitor_id;
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Competitor with that ID does not exist';
+        end if;
+
+        --satisfy trigger
+
+        perform payment_statuses.status_id FROM payment_statuses WHERE payment_statuses.status_id = 1;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Default payment status does not exist';
         end if;
 
         INSERT INTO participation (tournament_id,
