@@ -2,7 +2,7 @@
 DO $$
 BEGIN
   RAISE NOTICE '---------';
-  RAISE NOTICE 'Create fake records (with utility functions)';
+  RAISE NOTICE 'Create fake records (partly with utility functions)';
   RAISE NOTICE '---------';
   declare temp_key int;
   temp_key_2 int;
@@ -60,7 +60,7 @@ BEGIN
   select tournament_id from tournaments where name = 'Wimbledon Open 2016' into temp_key_2;
   perform add_team_result(temp_key_2,temp_key,'19');
   
-  perform add_competitor('Ganedr','Mahendra','56789012345',false,temp_key,'567890123','2000-10-19','NA','+48','ga.ma@mail.com','London','19','14-144');
+  perform add_competitor('Ganedr','Mahendra','56789012345',false,temp_key,'567890123','2000-10-19','UK','+48','ga.ma@mail.com','London','19','14-144');
   select res.competitor_id from (select competitor_id, first_name from competitors inner join personal_data on competitors.personal_data_id = personal_data.personal_data_id) as res where res.first_name = 'Ganedr' into temp_key;
   select tournament_id from tournaments where name = 'Wimbledon Open 2015' into temp_key_2;
   perform add_solo_result(temp_key_2,temp_key,'89');
@@ -118,9 +118,6 @@ BEGIN
   RAISE NOTICE '---------';
   end;
   
-  RAISE NOTICE 'Delete fake records (with utility functions)';
-
-
-
+  -- to save on fixing the db post-testing
   rollback;
 END$$;
