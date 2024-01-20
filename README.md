@@ -49,7 +49,7 @@ Conflicts may arise during simultaneous access, especially by organizers. Exampl
 - Overwriting or unintended changes in results.
 - Inconsistencies in payment status or duplicate registrations for the same tournament.
 
-To address these conflicts, the system should implement transaction management and conflict resolution mechanisms.
+To address these conflicts, the system should implement transaction management and conflict resolution mechanisms. <br/>
 [UPDATE] This conflicts was resloved.
 
 ## Installation and Setup
